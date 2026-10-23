@@ -85,6 +85,7 @@ function DesktopRow({ r, series, realized, ...a }: Actions & { r: Row; series: R
       <div role="cell" className="relative py-3 pl-4 pr-3">
         <div className="font-semibold text-slate-100">{r.ticker}</div>
         <div className="truncate text-xs text-slate-500">{r.name}</div>
+        {r.noQuote && <div className="text-[11px] text-amber-400">Cours indisponible (titre non coté ?)</div>}
       </div>
       <div role="cell" className="num relative px-3 text-right text-slate-300">{fmtMAD(r.buyPrice)}</div>
       <div role="cell" className="num relative px-3 text-right text-slate-300">{r.qty.toLocaleString('fr-MA')}</div>
@@ -118,6 +119,7 @@ function MobileCard({ r, series, realized, ...a }: Actions & { r: Row; series: R
           <div className="min-w-0">
             <div className="font-semibold text-slate-100">{r.ticker}</div>
             <div className="truncate text-xs text-slate-500">{r.name}</div>
+        {r.noQuote && <div className="text-[11px] text-amber-400">Cours indisponible (titre non coté ?)</div>}
           </div>
           <div className="text-right">
             <div className="num font-semibold text-slate-100">{fmtMAD(r.price)}</div>

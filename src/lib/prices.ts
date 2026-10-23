@@ -3,13 +3,51 @@ import { load, save } from './storage';
 import { todayISO } from './format';
 
 const KEY = 'price-history';
-const MAX_POINTS = 800;
+const FETCHED_KEY = 'price-history-fetched';
 
 export function loadPrices(): PriceHistory {
   return load<PriceHistory>(KEY, {});
 }
 
-/** Enregistre le cours du jour de chaque titre suivi (écrasé jusqu'à la clôture). */
+/** Historique réel des cours de clôture journaliers d'un titre (~6 ans) */
+async function fetchHistory(ticker: string): Promise<PricePoint[]> {
+  const res = await fetch(`/api/history?ticker=${encodeURIComponent(ticker)}`);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const points = ((await res.json()) as { points?: PricePoint[] }).points;
+  if (!Array.isArray(points)) throw new Error('Format inattendu');
+  return points;
+}
+
+/**
+ * Charge (une fois par jour et par titre) l'historique réel des titres détenus.
+ * Les titres en échec gardent leur historique précédent.
+ */
+export async function ensureHistories(tickers: string[]): Promise<PriceHistory> {
+  const hist = loadPrices();
+  const fetched = load<Record<string, string>>(FETCHED_KEY, {});
+  const today = todayISO();
+  const todo = tickers.filter((t) => fetched[t] !== today || !hist[t]?.length);
+  await Promise.all(
+    todo.map(async (t) => {
+      try {
+        const series = await fetchHistory(t);
+        if (series.length) {
+          // le point « aujourd'hui » enregistré depuis le flux direct reste prioritaire
+          const live = hist[t]?.find((p) => p.date === today);
+          hist[t] = live ? [...series.filter((p) => p.date !== today), live] : series;
+          fetched[t] = today;
+        }
+      } catch {
+        /* réseau indisponible : on réessaiera au prochain chargement */
+      }
+    }),
+  );
+  save(KEY, hist);
+  save(FETCHED_KEY, fetched);
+  return hist;
+}
+
+/** Ajoute/écrase le cours du jour des titres suivis à partir du flux direct. */
 export function recordPrices(quotes: QuoteMap, tickers: string[]): PriceHistory {
   const hist = loadPrices();
   const date = todayISO();
@@ -18,46 +56,15 @@ export function recordPrices(quotes: QuoteMap, tickers: string[]): PriceHistory 
     if (!q) continue;
     const series = (hist[t] ?? []).filter((p) => p.date !== date);
     series.push({ date, price: q.price });
-    series.sort((a, b) => a.date.localeCompare(b.date));
-    hist[t] = series.slice(-MAX_POINTS);
+    hist[t] = series;
   }
-  save(KEY, hist);
-  return hist;
-}
-
-function weekdaysBetween(from: string, toExclusive: string): string[] {
-  const days: string[] = [];
-  const d = new Date(from + 'T12:00:00');
-  while (todayISO(d) < toExclusive) {
-    const wd = d.getDay();
-    if (wd !== 0 && wd !== 6) days.push(todayISO(d));
-    d.setDate(d.getDate() + 1);
-  }
-  return days;
-}
-
-/**
- * Mode démo uniquement : historique simulé d'un titre, marche aléatoire remontée
- * dans le temps à partir de la clôture d'hier (donc cohérente avec le cours actuel).
- */
-export function seedTicker(ticker: string, fromDate: string, prevClose: number): PriceHistory {
-  const hist = loadPrices();
-  if (hist[ticker]?.length) return hist;
-  const days = weekdaysBetween(fromDate, todayISO());
-  const series: PricePoint[] = new Array(days.length);
-  let p = prevClose;
-  for (let i = days.length - 1; i >= 0; i--) {
-    series[i] = { date: days[i], price: Math.round(p * 100) / 100 };
-    const r = (Math.random() - 0.5) * 0.026 + 0.0004; // ~1,3 %/jour, légère dérive haussière
-    p = p / (1 + r);
-  }
-  hist[ticker] = series.slice(-MAX_POINTS);
   save(KEY, hist);
   return hist;
 }
 
 export function clearPrices(): void {
   save(KEY, {});
+  save(FETCHED_KEY, {});
 }
 
 /** Cours au jour `date` (dernier connu à cette date), ou undefined */
@@ -75,5 +82,3 @@ export function priceAt(series: PricePoint[] | undefined, date: string): number 
   }
   return ans;
 }
-
-export { weekdaysBetween };

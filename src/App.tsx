@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Info, RotateCcw } from 'lucide-react';
 import { TopBar } from './components/TopBar';
 import { HeroChart } from './components/HeroChart';
@@ -7,60 +7,62 @@ import { PositionsTable } from './components/PositionsTable';
 import { PositionModal } from './components/PositionModal';
 import { SellModal } from './components/SellModal';
 import { SalesList } from './components/SalesList';
-import { useMarket } from './lib/market';
+import { SyncPanel, type SyncStatus } from './components/SyncPanel';
+import { isMarketOpen, useMarket } from './lib/market';
 import { buildRows, totals as computeTotals } from './lib/portfolio';
-import { clearHistory, loadDaily, loadIntraday, recordSnapshot, seedDemoHistory } from './lib/history';
-import { clearPrices, loadPrices, recordPrices, seedTicker } from './lib/prices';
+import { clearIntraday, computeDaily, loadIntraday, recordIntraday } from './lib/history';
+import { clearPrices, ensureHistories, loadPrices, recordPrices } from './lib/prices';
 import { load, save } from './lib/storage';
 import { UNIVERSE_MAP } from './lib/universe';
-import type { DailyPoint, IntradayPoint, Position, PriceHistory, Sale } from './lib/types';
-
-// contexte affiché avant la date d'achat dans l'historique simulé
-const SEED_LEAD_DAYS = 60;
+import { getSyncCode, isValidCode, newSyncCode, normalizeCode, pull, push, setSyncCode, type SyncDoc } from './lib/sync';
+import type { IntradayPoint, Position, PriceHistory, Sale } from './lib/types';
 
 // Portefeuille par défaut : quantités et prix d'achat indicatifs, à ajuster via « Modifier »
 const DEFAULT_POSITIONS: Position[] = [
-  { id: 'def-iam', ticker: 'IAM', name: 'Itissalat Al-Maghrib (Maroc Telecom)', qty: 200, buyPrice: 104, buyDate: '2025-03-12' },
-  { id: 'def-tgc', ticker: 'TGC', name: 'TGCC', qty: 30, buyPrice: 640, buyDate: '2025-05-20' },
+  { id: 'def-iam', ticker: 'IAM', name: 'Itissalat Al-Maghrib (Maroc Telecom)', qty: 200, buyPrice: 95, buyDate: '2025-03-12' },
+  { id: 'def-tgc', ticker: 'TGC', name: 'TGCC', qty: 30, buyPrice: 560, buyDate: '2025-05-20' },
   { id: 'def-gtm', ticker: 'GTM', name: 'SGTM', qty: 40, buyPrice: 420, buyDate: '2025-12-15' },
-  { id: 'def-cih', ticker: 'CIH', name: 'CIH Bank', qty: 50, buyPrice: 385, buyDate: '2025-07-08' },
-  { id: 'def-ris', ticker: 'RIS', name: 'Risma', qty: 80, buyPrice: 228, buyDate: '2025-09-24' },
-  { id: 'def-cda', ticker: 'CDA', name: 'Centrale Danone', qty: 25, buyPrice: 610, buyDate: '2026-02-03' },
+  { id: 'def-cih', ticker: 'CIH', name: 'CIH Bank', qty: 50, buyPrice: 300, buyDate: '2025-07-08' },
+  { id: 'def-ris', ticker: 'RIS', name: 'Risma', qty: 80, buyPrice: 250, buyDate: '2025-09-24' },
 ];
 
+const SYNC_DEBOUNCE_MS = 1500;
+
+// clés de l'ancien mode démo (cours simulés), supprimées au démarrage
+const LEGACY_KEYS = ['demo-quotes', 'needs-demo-history', 'history-daily'];
+
 function initialPositions(): Position[] {
-  const stored = load<Position[] | null>('positions', null);
-  // ancien portefeuille démo (ids « demo-* ») non modifié : remplacé par le nouveau défaut
-  const isOldDemo = stored != null && stored.length > 0 && stored.every((p) => p.id.startsWith('demo-'));
-  if (stored && !isOldDemo) {
-    // portefeuille par défaut sans historique par titre : régénérer un historique démo cohérent
-    const isDefault = stored.length > 0 && stored.every((p) => p.id.startsWith('def-'));
-    if (isDefault && Object.keys(loadPrices()).length === 0) save('needs-demo-history', true);
-    return stored;
+  try {
+    LEGACY_KEYS.forEach((k) => localStorage.removeItem('abourse:' + k));
+  } catch {
+    /* stockage indisponible */
   }
-  save('positions', DEFAULT_POSITIONS);
-  save('needs-demo-history', true);
-  return DEFAULT_POSITIONS;
+  const stored = load<Position[] | null>('positions', null);
+  if (!stored || (stored.length > 0 && stored.every((p) => p.id.startsWith('demo-')))) {
+    save('positions', DEFAULT_POSITIONS);
+    save('local-updated-at', 0);
+    clearPrices();
+    return DEFAULT_POSITIONS;
+  }
+  // Centrale Danone n'est plus cotée : ligne par défaut non modifiée retirée
+  return stored.filter((p) => !(p.id === 'def-cda' && p.qty === 25 && p.buyPrice === 610));
 }
 
 export default function App() {
   const [positions, setPositions] = useState<Position[]>(initialPositions);
+  const [sales, setSales] = useState<Sale[]>(() => load<Sale[]>('sales', []));
   const [modal, setModal] = useState<Partial<Position> | null>(null);
   const [selling, setSelling] = useState<Position | null>(null);
-  const [sales, setSales] = useState<Sale[]>(() => load<Sale[]>('sales', []));
-  const [daily, setDaily] = useState<DailyPoint[]>(loadDaily);
   const [intraday, setIntraday] = useState<IntradayPoint[]>(loadIntraday);
   const [prices, setPrices] = useState<PriceHistory>(loadPrices);
+  const [showSync, setShowSync] = useState(false);
+  const [syncCode, setCode] = useState<string | null>(getSyncCode);
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>({ state: getSyncCode() ? 'ok' : 'off', at: null });
 
-  // cours de base pour les titres hors univers BVC connu
-  const customBases = useMemo(
-    () => Object.fromEntries(positions.filter((p) => !UNIVERSE_MAP[p.ticker]).map((p) => [p.ticker, p.buyPrice])),
-    [positions],
-  );
-  const market = useMarket(customBases);
-
+  const market = useMarket();
   const rows = useMemo(() => buildRows(positions, market.quotes), [positions, market.quotes]);
   const totals = useMemo(() => computeTotals(rows), [rows]);
+  const daily = useMemo(() => computeDaily(positions, sales, prices), [positions, sales, prices]);
 
   const { realizedByTicker, realizedTotal, soldCost } = useMemo(() => {
     const byTicker: Record<string, number> = {};
@@ -75,39 +77,132 @@ export default function App() {
     return { realizedByTicker: byTicker, realizedTotal: total, soldCost: cost };
   }, [sales]);
 
-  useEffect(() => save('positions', positions), [positions]);
-  useEffect(() => save('sales', sales), [sales]);
+  /* ── Historique réel des cours (titres détenus + titres vendus) ───────── */
 
-  // enregistrement automatique : cours par titre + valeur du portefeuille (journalier + intraday)
+  const tickers = useMemo(() => [...new Set([...positions, ...sales].map((p) => p.ticker))].sort(), [positions, sales]);
+  const tickersKey = tickers.join(',');
+
   useEffect(() => {
-    if (!market.updatedAt || positions.length === 0) return;
-    const tickers = [...new Set(positions.map((p) => p.ticker))];
-    if (market.mode === 'demo') {
-      for (const p of positions) {
-        const q = market.quotes[p.ticker];
-        if (!q) continue;
-        const from = new Date(p.buyDate + 'T12:00:00');
-        from.setDate(from.getDate() - SEED_LEAD_DAYS);
-        seedTicker(p.ticker, from.toISOString().slice(0, 10), q.prevClose);
-      }
-    }
-    const hist = recordPrices(market.quotes, tickers);
-    if (load('needs-demo-history', false)) {
-      seedDemoHistory(positions, hist, totals.value - totals.dayChange, totals.value);
-      save('needs-demo-history', false);
-    }
-    const snap = recordSnapshot(totals.value, totals.invested);
-    setPrices(hist);
-    setDaily(snap.daily);
-    setIntraday(snap.intraday);
+    if (tickers.length) void ensureHistories(tickers).then(setPrices);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [market.updatedAt, positions.length]);
+  }, [tickersKey, market.mode === 'live']);
+
+  // cours direct : point du jour dans l'historique + courbe intraday pendant la séance
+  useEffect(() => {
+    if (market.mode !== 'live' || tickers.length === 0) return;
+    setPrices(recordPrices(market.quotes, tickers));
+    if (isMarketOpen() && positions.length) setIntraday(recordIntraday(totals.value, totals.invested));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [market.fetchedAt]);
+
+  /* ── Synchronisation multi-appareils ─────────────────────────────────── */
+
+  const applyingRemote = useRef(false);
+  const firstRender = useRef(true);
+  const pushTimer = useRef<ReturnType<typeof setTimeout>>();
+  const stateRef = useRef({ positions, sales });
+  stateRef.current = { positions, sales };
+
+  const localDoc = (): SyncDoc => ({ updatedAt: load<number>('local-updated-at', 0), ...stateRef.current });
+
+  const applyRemote = (doc: SyncDoc) => {
+    applyingRemote.current = true;
+    setPositions(doc.positions);
+    setSales(doc.sales);
+    save('local-updated-at', doc.updatedAt);
+  };
+
+  const syncNow = useCallback(async (code = getSyncCode()) => {
+    if (!code) return;
+    setSyncStatus((s) => ({ ...s, state: 'syncing' }));
+    try {
+      const remote = await pull(code);
+      const local = localDoc();
+      if (remote && remote.updatedAt > local.updatedAt) applyRemote(remote);
+      else if (!remote || local.updatedAt > remote.updatedAt) await push(code, local);
+      setSyncStatus({ state: 'ok', at: Date.now() });
+    } catch (e) {
+      setSyncStatus({ state: 'error', at: null, message: e instanceof Error ? e.message : 'Erreur réseau' });
+    }
+  }, []);
+
+  const join = useCallback(async (raw: string) => {
+    const code = normalizeCode(raw);
+    setSyncStatus({ state: 'syncing', at: null });
+    try {
+      const remote = await pull(code);
+      if (!remote) throw new Error('Aucune donnée pour ce code');
+      applyRemote(remote);
+      setSyncCode(code);
+      setCode(code);
+      setSyncStatus({ state: 'ok', at: Date.now() });
+    } catch (e) {
+      setSyncStatus({ state: 'error', at: null, message: e instanceof Error ? e.message : 'Erreur réseau' });
+    }
+  }, []);
+
+  const create = async () => {
+    const code = newSyncCode();
+    save('local-updated-at', Date.now());
+    setSyncStatus({ state: 'syncing', at: null });
+    try {
+      await push(code, localDoc());
+      setSyncCode(code);
+      setCode(code);
+      setSyncStatus({ state: 'ok', at: Date.now() });
+    } catch (e) {
+      setSyncStatus({ state: 'error', at: null, message: e instanceof Error ? e.message : 'Erreur réseau' });
+    }
+  };
+
+  const disconnect = () => {
+    setSyncCode(null);
+    setCode(null);
+    setSyncStatus({ state: 'off', at: null });
+  };
+
+  // ouverture de l'app (lien #sync=CODE, ou synchro normale) et retour au premier plan
+  useEffect(() => {
+    const fromLink = location.hash.match(/sync=([A-Za-z0-9-]+)/)?.[1];
+    if (fromLink && isValidCode(fromLink)) {
+      history.replaceState(null, '', location.pathname);
+      void join(fromLink);
+      setShowSync(true);
+    } else void syncNow();
+    const onVisible = () => document.visibilityState === 'visible' && void syncNow();
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [join, syncNow]);
+
+  // modification locale : sauvegarde + envoi différé
+  useEffect(() => {
+    save('positions', positions);
+    save('sales', sales);
+    if (firstRender.current) {
+      firstRender.current = false;
+      return;
+    }
+    if (applyingRemote.current) {
+      applyingRemote.current = false;
+      return;
+    }
+    save('local-updated-at', Date.now());
+    const code = getSyncCode();
+    if (!code) return;
+    clearTimeout(pushTimer.current);
+    pushTimer.current = setTimeout(() => {
+      setSyncStatus((s) => ({ ...s, state: 'syncing' }));
+      push(code, localDoc())
+        .then(() => setSyncStatus({ state: 'ok', at: Date.now() }))
+        .catch((e: unknown) => setSyncStatus({ state: 'error', at: null, message: e instanceof Error ? e.message : 'Erreur réseau' }));
+    }, SYNC_DEBOUNCE_MS);
+  }, [positions, sales]);
+
+  /* ── Actions ─────────────────────────────────────────────────────────── */
 
   const sell = (s: Sale) => {
     setSales((ss) => [...ss, s]);
-    setPositions((ps) =>
-      ps.flatMap((p) => (p.id !== s.positionId ? [p] : p.qty - s.qty > 0 ? [{ ...p, qty: p.qty - s.qty }] : [])),
-    );
+    setPositions((ps) => ps.flatMap((p) => (p.id !== s.positionId ? [p] : p.qty - s.qty > 0 ? [{ ...p, qty: p.qty - s.qty }] : [])));
     setSelling(null);
   };
 
@@ -129,20 +224,18 @@ export default function App() {
 
   const deletePosition = (id: string) => {
     const p = positions.find((x) => x.id === id);
-    if (p && window.confirm(`Supprimer la position ${p.ticker} (${p.qty} titres) ?`)) {
-      setPositions((ps) => ps.filter((x) => x.id !== id));
-    }
+    if (p && window.confirm(`Supprimer la position ${p.ticker} (${p.qty} titres) ?`)) setPositions((ps) => ps.filter((x) => x.id !== id));
   };
 
   const reset = () => {
-    if (!window.confirm("Effacer toutes les positions et l'historique ? Cette action est irréversible.")) return;
+    const msg = syncCode
+      ? "Effacer toutes les positions et ventes ? L'effacement sera aussi synchronisé sur vos autres appareils."
+      : 'Effacer toutes les positions et ventes ? Cette action est irréversible.';
+    if (!window.confirm(msg)) return;
     setPositions([]);
     setSales([]);
-    clearHistory();
-    clearPrices();
-    setDaily([]);
+    clearIntraday();
     setIntraday([]);
-    setPrices({});
   };
 
   return (
@@ -153,14 +246,24 @@ export default function App() {
         open={market.open}
         updatedAt={market.updatedAt}
         error={market.error}
-        onRefresh={() => void market.refresh()}
+        onRefresh={() => {
+          void market.refresh();
+          void syncNow();
+        }}
         onPick={(t) => {
           const existing = positions.find((p) => p.ticker === t);
-          setModal(existing ?? { ticker: t, name: UNIVERSE_MAP[t]?.name });
+          setModal(existing ?? { ticker: t, name: UNIVERSE_MAP[t]?.name ?? market.quotes[t]?.name });
         }}
+        sync={syncStatus.state}
+        onSync={() => setShowSync(true)}
       />
 
       <main className="mx-auto max-w-7xl space-y-5 px-4 py-5 sm:space-y-6 sm:py-8">
+        {market.mode === 'error' && (
+          <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">
+            Impossible de récupérer les cours ({market.error}). Vérifiez votre connexion puis actualisez.
+          </div>
+        )}
         <HeroChart daily={daily} intraday={intraday} totals={totals} />
         <Metrics t={totals} realized={realizedTotal} soldCost={soldCost} />
         <PositionsTable
@@ -178,8 +281,9 @@ export default function App() {
           <p className="flex items-start gap-1.5">
             <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
             {market.mode === 'live'
-              ? 'Cours issus de la Bourse de Casablanca (différés). Historique enregistré localement dans ce navigateur.'
-              : 'Mode démo : flux BVC injoignable, cours simulés à partir de références indicatives. Historique enregistré localement.'}
+              ? `Cours de la Bourse de Casablanca (différés de ${market.delayMinutes} min), actualisés à chaque ouverture et toutes les 30 s en séance.`
+              : 'Flux injoignable : derniers cours réels connus affichés.'}
+            {syncCode ? ' Positions synchronisées entre vos appareils.' : ' Positions enregistrées sur cet appareil.'}
           </p>
           <button onClick={reset} className="flex items-center gap-1 self-start rounded-md px-2 py-1 hover:bg-slate-900 hover:text-slate-300 sm:self-auto">
             <RotateCcw className="h-3.5 w-3.5" /> Réinitialiser
@@ -197,12 +301,17 @@ export default function App() {
         />
       )}
       {selling && (
-        <SellModal
-          key={selling.id}
-          position={selling}
-          currentPrice={market.quotes[selling.ticker]?.price}
-          onSell={sell}
-          onClose={() => setSelling(null)}
+        <SellModal key={selling.id} position={selling} currentPrice={market.quotes[selling.ticker]?.price} onSell={sell} onClose={() => setSelling(null)} />
+      )}
+      {showSync && (
+        <SyncPanel
+          code={syncCode}
+          status={syncStatus}
+          onCreate={() => void create()}
+          onJoin={(c) => void join(c)}
+          onSyncNow={() => void syncNow()}
+          onDisconnect={disconnect}
+          onClose={() => setShowSync(false)}
         />
       )}
     </div>

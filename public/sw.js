@@ -1,5 +1,5 @@
 // Service worker AbouRSE : app utilisable hors ligne (coquille + derniers fichiers chargés).
-const CACHE = 'abourse-v1';
+const CACHE = 'abourse-v2';
 const SHELL = ['/', '/index.html', '/manifest.webmanifest', '/icon-192.png', '/icon-512.png', '/apple-touch-icon.png', '/avatar.png'];
 
 self.addEventListener('install', (e) => {
@@ -19,7 +19,7 @@ self.addEventListener('fetch', (e) => {
   const req = e.request;
   const url = new URL(req.url);
   // cours de bourse : toujours réseau, jamais de cache
-  if (req.method !== 'GET' || url.origin !== location.origin || url.pathname.startsWith('/cse')) return;
+  if (req.method !== 'GET' || url.origin !== location.origin || url.pathname.startsWith('/api/')) return;
 
   // navigation : réseau d'abord, repli sur la page en cache
   if (req.mode === 'navigate') {

@@ -9,6 +9,8 @@ export interface Row extends Position {
   pnlPct: number;
   dayPct: number;
   dayChange: number;
+  /** aucun cours de marché pour ce titre : prix d'achat utilisé */
+  noQuote: boolean;
 }
 
 export interface Totals {
@@ -38,6 +40,7 @@ export function buildRows(positions: Position[], quotes: QuoteMap): Row[] {
       pnlPct: invested ? (pnl / invested) * 100 : 0,
       dayPct: prevClose ? ((price - prevClose) / prevClose) * 100 : 0,
       dayChange: (price - prevClose) * p.qty,
+      noQuote: !q,
     };
   });
 }

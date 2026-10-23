@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Clock, RefreshCw, Search } from 'lucide-react';
+import { Clock, Cloud, CloudOff, RefreshCw, Search } from 'lucide-react';
+import type { SyncStatus } from './SyncPanel';
 import { UNIVERSE } from '../lib/universe';
 import type { FeedMode, QuoteMap } from '../lib/types';
 import { fmtMAD, fmtPct, toneClass } from '../lib/format';
@@ -12,9 +13,11 @@ interface Props {
   error: string | null;
   onRefresh: () => void;
   onPick: (ticker: string) => void;
+  sync: SyncStatus['state'];
+  onSync: () => void;
 }
 
-export function TopBar({ quotes, mode, open, updatedAt, error, onRefresh, onPick }: Props) {
+export function TopBar({ quotes, mode, open, updatedAt, error, onRefresh, onPick, sync, onSync }: Props) {
   const [q, setQ] = useState('');
   const [focus, setFocus] = useState(false);
   const [active, setActive] = useState(0);
@@ -44,9 +47,12 @@ export function TopBar({ quotes, mode, open, updatedAt, error, onRefresh, onPick
     setFocus(false);
   };
 
-  const time = updatedAt
-    ? updatedAt.toLocaleTimeString('fr-MA', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
-    : '—';
+  // heure de la dernière cotation ; jour affiché si ce n'est pas aujourd'hui (week-end, jour férié)
+  const time = !updatedAt
+    ? '—'
+    : updatedAt.toDateString() === new Date().toDateString()
+      ? updatedAt.toLocaleTimeString('fr-MA', { hour: '2-digit', minute: '2-digit' })
+      : updatedAt.toLocaleString('fr-MA', { weekday: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' });
 
   return (
     <header className="safe-top sticky top-0 z-30 border-b border-slate-800/80 bg-slate-950/85 backdrop-blur-xl">
@@ -112,13 +118,19 @@ export function TopBar({ quotes, mode, open, updatedAt, error, onRefresh, onPick
         <div className="ml-auto flex items-center gap-2 text-xs sm:gap-3">
           <span className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 font-semibold text-slate-300">MAD</span>
           <span
-            title={mode === 'live' ? 'Flux Bourse de Casablanca' : `Flux réel indisponible (${error ?? '—'}) : cours simulés`}
+            title={
+              mode === 'live'
+                ? 'Cours Bourse de Casablanca, différés de 15 min (source TradingView)'
+                : mode === 'loading'
+                  ? 'Chargement des cours…'
+                  : `Flux injoignable (${error ?? '—'}) : derniers cours connus affichés`
+            }
             className={`flex items-center gap-1.5 rounded-md px-2 py-1 font-semibold ${
-              mode === 'live' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'
+              mode === 'live' ? 'bg-emerald-500/10 text-emerald-400' : mode === 'loading' ? 'bg-slate-800 text-slate-400' : 'bg-amber-500/10 text-amber-400'
             }`}
           >
-            <span className={`h-1.5 w-1.5 rounded-full ${mode === 'live' ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
-            {mode === 'live' ? 'LIVE' : 'DÉMO'}
+            <span className={`h-1.5 w-1.5 rounded-full ${mode === 'live' ? 'bg-emerald-400 animate-pulse' : mode === 'loading' ? 'bg-slate-500' : 'bg-amber-400'}`} />
+            {mode === 'live' ? 'LIVE' : mode === 'loading' ? '…' : 'HORS LIGNE'}
           </span>
           <span className={`hidden rounded-md px-2 py-1 md:inline ${open ? 'text-emerald-300' : 'text-slate-500'}`}>
             {open ? 'Séance ouverte' : 'Marché fermé'}
@@ -127,6 +139,15 @@ export function TopBar({ quotes, mode, open, updatedAt, error, onRefresh, onPick
             <Clock className="h-3.5 w-3.5" />
             <span className="num">{time}</span>
           </span>
+          <button
+            onClick={onSync}
+            aria-label="Synchronisation entre appareils"
+            title={sync === 'off' ? 'Synchroniser entre appareils' : sync === 'error' ? 'Erreur de synchronisation' : 'Synchronisé'}
+            className="relative rounded-full p-2 text-slate-400 transition hover:bg-slate-800 hover:text-slate-100"
+          >
+            {sync === 'off' ? <CloudOff className="h-4 w-4" /> : <Cloud className={`h-4 w-4 ${sync === 'error' ? 'text-rose-400' : 'text-sky-400'}`} />}
+            {sync === 'syncing' && <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 animate-ping rounded-full bg-sky-400" />}
+          </button>
           <button
             onClick={onRefresh}
             aria-label="Actualiser les cours"

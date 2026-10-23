@@ -1,11 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type { FeedMode, QuoteMap } from './types';
-import { UNIVERSE } from './universe';
+import { UNIVERSE_MAP } from './universe';
 import { load, save } from './storage';
-import { todayISO } from './format';
 
-const LIVE_POLL_MS = 60_000;
-const DEMO_TICK_MS = 4_000;
+const POLL_OPEN_MS = 30_000;
+const POLL_CLOSED_MS = 5 * 60_000;
 
 /** Séance BVC : lundi–vendredi, 09:30–15:30 (heure de Casablanca) */
 export function isMarketOpen(now = new Date()): boolean {
@@ -22,159 +21,80 @@ export function isMarketOpen(now = new Date()): boolean {
   return mins >= 9 * 60 + 30 && mins <= 15 * 60 + 30;
 }
 
-/* ── Flux réel (via proxy /cse configuré dans vite.config.ts) ───────────── */
-
-const num = (v: unknown): number | null => {
-  if (typeof v === 'number' && isFinite(v)) return v;
-  if (typeof v === 'string' && v.trim() !== '') {
-    const n = Number(v.replace(/\s/g, '').replace(',', '.'));
-    return isFinite(n) ? n : null;
-  }
-  return null;
-};
-
-/** Parcourt la réponse JSON de la BVC et extrait {symbole, cours, veille}. Tolérant au format. */
-function parseCse(json: unknown): QuoteMap {
-  const out: QuoteMap = {};
-  const visit = (node: unknown) => {
-    if (Array.isArray(node)) return node.forEach(visit);
-    if (!node || typeof node !== 'object') return;
-    const o = node as Record<string, unknown>;
-    const sym = [o.ticker, o.symbol, o.field_symbol, o.field_code_soc, o.code].find(
-      (v) => typeof v === 'string' && /^[A-Z0-9]{2,6}$/.test(v),
-    ) as string | undefined;
-    const price = num(o.field_cours_courant ?? o.lastPrice ?? o.price ?? o.cours);
-    if (sym && price && price > 0) {
-      const varPct = num(o.field_var_veille ?? o.variation ?? o.var);
-      const prev = num(o.field_cours_veille ?? o.field_static_reference_price ?? o.prevClose);
-      const prevClose = prev ?? (varPct != null ? price / (1 + varPct / 100) : price);
-      out[sym] = { ticker: sym, price, prevClose };
-    }
-    Object.values(o).forEach((v) => typeof v === 'object' && visit(v));
-  };
-  visit(json);
-  return out;
-}
-
-async function fetchLive(): Promise<QuoteMap> {
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 8000);
-  try {
-    const res = await fetch('/cse/dashboard/ticker?marche=59&class%5B%5D=25', { signal: ctrl.signal });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const quotes = parseCse(await res.json());
-    if (Object.keys(quotes).length === 0) throw new Error('Réponse vide');
-    return quotes;
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
-/* ── Mode démo : marche aléatoire persistée, uniquement pendant la séance ── */
-
-interface DemoState {
-  date: string;
+interface Snapshot {
   quotes: QuoteMap;
+  /** retard du flux en minutes (15 pour la BVC) */
+  delayMinutes: number;
+  fetchedAt: number;
 }
 
-const round = (n: number) => Math.round(n * 100) / 100;
-
-function initDemo(extraBases: Record<string, number>): DemoState {
-  const stored = load<DemoState | null>('demo-quotes', null);
-  const today = todayISO();
-  const bases: Record<string, number> = { ...extraBases };
-  UNIVERSE.forEach((i) => (bases[i.ticker] = i.ref));
+export async function fetchQuotes(): Promise<Snapshot> {
+  const res = await fetch('/api/quotes', { cache: 'no-store' });
+  const body = (await res.json().catch(() => ({}))) as {
+    error?: string;
+    delayMinutes?: number;
+    at?: number;
+    quotes?: { ticker: string; name: string; price: number; prevClose: number }[];
+  };
+  if (!res.ok || !body.quotes?.length) throw new Error(body.error ?? `HTTP ${res.status}`);
 
   const quotes: QuoteMap = {};
-  for (const [ticker, base] of Object.entries(bases)) {
-    const prev = stored?.quotes[ticker];
-    if (prev && stored!.date === today) quotes[ticker] = prev;
-    else if (prev) quotes[ticker] = { ticker, price: prev.price, prevClose: prev.price };
-    else {
-      const drift = 1 + (Math.random() - 0.5) * 0.03;
-      quotes[ticker] = { ticker, price: round(base * drift), prevClose: base };
-    }
+  for (const q of body.quotes) {
+    const known = UNIVERSE_MAP[q.ticker];
+    quotes[q.ticker] = { ticker: q.ticker, name: known?.name ?? q.name, price: q.price, prevClose: q.prevClose || q.price };
   }
-  return { date: today, quotes };
+  return { quotes, delayMinutes: body.delayMinutes ?? 15, fetchedAt: body.at ?? Date.now() };
 }
 
-function tickDemo(state: DemoState): DemoState {
-  const quotes: QuoteMap = {};
-  for (const [t, q] of Object.entries(state.quotes)) {
-    // marche aléatoire avec rappel vers la clôture veille (borne ±6 %)
-    const dev = (q.price - q.prevClose) / q.prevClose;
-    const step = (Math.random() - 0.5) * 0.004 - dev * 0.02;
-    const next = Math.min(Math.max(q.price * (1 + step), q.prevClose * 0.94), q.prevClose * 1.06);
-    quotes[t] = { ...q, price: round(next) };
-  }
-  return { ...state, quotes };
-}
-
-/* ── Hook ───────────────────────────────────────────────────────────────── */
-
-export function useMarket(customBases: Record<string, number>) {
-  const [mode, setMode] = useState<FeedMode>('demo');
-  const [quotes, setQuotes] = useState<QuoteMap>({});
-  const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
+export function useMarket() {
+  const cached = load<Snapshot | null>('last-quotes', null);
+  const [snap, setSnap] = useState<Snapshot | null>(cached);
+  const [mode, setMode] = useState<FeedMode>(cached ? 'cache' : 'loading');
   const [open, setOpen] = useState(isMarketOpen());
   const [error, setError] = useState<string | null>(null);
-  const demo = useRef<DemoState | null>(null);
-  const basesRef = useRef(customBases);
-  basesRef.current = customBases;
-
-  const ensureDemo = () => {
-    if (!demo.current) demo.current = initDemo(basesRef.current);
-    // titres hors univers ajoutés en cours de session
-    for (const [t, base] of Object.entries(basesRef.current)) {
-      if (!demo.current.quotes[t]) demo.current.quotes[t] = { ticker: t, price: base, prevClose: base };
-    }
-    return demo.current;
-  };
-
-  const publishDemo = useCallback(() => {
-    const s = ensureDemo();
-    save('demo-quotes', s);
-    setQuotes({ ...s.quotes });
-    setUpdatedAt(new Date());
-  }, []);
 
   const refresh = useCallback(async () => {
+    setOpen(isMarketOpen());
     try {
-      const live = await fetchLive();
-      // garder les cours démo pour les titres absents du flux
-      setQuotes({ ...ensureDemo().quotes, ...live });
+      const s = await fetchQuotes();
+      save('last-quotes', s);
+      setSnap(s);
       setMode('live');
       setError(null);
-      setUpdatedAt(new Date());
     } catch (e) {
-      setMode('demo');
+      // repli : derniers cours réels connus (jamais de cours inventés)
+      setMode((m) => (m === 'loading' && !load('last-quotes', null) ? 'error' : 'cache'));
       setError(e instanceof Error ? e.message : 'Flux indisponible');
-      publishDemo();
     }
-  }, [publishDemo]);
+  }, []);
 
+  // à chaque ouverture / retour sur l'app : cours frais, puis rafraîchissement régulier
   useEffect(() => {
     void refresh();
-    const id = setInterval(() => void refresh(), LIVE_POLL_MS);
-    return () => clearInterval(id);
+    let id = setInterval(() => void refresh(), isMarketOpen() ? POLL_OPEN_MS : POLL_CLOSED_MS);
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible') return;
+      void refresh();
+      clearInterval(id);
+      id = setInterval(() => void refresh(), isMarketOpen() ? POLL_OPEN_MS : POLL_CLOSED_MS);
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('online', onVisible);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('online', onVisible);
+    };
   }, [refresh]);
 
-  useEffect(() => {
-    const id = setInterval(() => {
-      const isOpen = isMarketOpen();
-      setOpen(isOpen);
-      if (mode !== 'demo' || !isOpen) return;
-      demo.current = tickDemo(ensureDemo());
-      publishDemo();
-    }, DEMO_TICK_MS);
-    return () => clearInterval(id);
-  }, [mode, publishDemo]);
-
-  // nouveaux titres personnalisés : republier la carte démo
-  const basesKey = Object.keys(customBases).sort().join(',');
-  useEffect(() => {
-    if (mode === 'demo' && demo.current) publishDemo();
-  }, [basesKey, mode, publishDemo]);
-
-  return { quotes, mode, updatedAt, open, error, refresh };
+  return {
+    quotes: snap?.quotes ?? {},
+    mode,
+    open,
+    error,
+    refresh,
+    updatedAt: snap ? new Date(snap.fetchedAt) : null,
+    fetchedAt: snap ? snap.fetchedAt : null,
+    delayMinutes: snap?.delayMinutes ?? 15,
+  };
 }

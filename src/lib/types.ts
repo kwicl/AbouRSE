@@ -9,13 +9,15 @@ export interface Position {
 
 export interface Quote {
   ticker: string;
+  name: string;
   price: number;
   prevClose: number;
 }
 
 export type QuoteMap = Record<string, Quote>;
 
-export type FeedMode = 'live' | 'demo';
+/** live : flux à jour • cache : derniers cours réels connus (flux injoignable) • error : aucun cours */
+export type FeedMode = 'live' | 'cache' | 'loading' | 'error';
 
 export interface DailyPoint {
   date: string; // YYYY-MM-DD
