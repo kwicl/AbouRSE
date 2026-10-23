@@ -1,0 +1,174 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  background: #020617;
+  color: #e2e8f0;
+  font-family: Inter, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior-y: none;
+  /* encoches et coins arrondis (iPhone, Android plein écran) */
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+button,
+a {
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.safe-top {
+  padding-top: env(safe-area-inset-top);
+}
+.safe-bottom {
+  padding-bottom: calc(env(safe-area-inset-bottom) + 1.25rem);
+}
+
+/* iOS zoome sur les champs < 16px : on force 16px sur mobile */
+@media (max-width: 767px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+.num {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Conteneur néon ─────────────────────────────────────────────────────── */
+.neon {
+  --glow: 52, 211, 153; /* emerald-400 */
+  --glow-2: 34, 211, 238; /* cyan-400 */
+  position: relative;
+  border-radius: 1.25rem;
+  background:
+    radial-gradient(120% 80% at 0% 0%, rgba(var(--glow), 0.08), transparent 60%),
+    linear-gradient(180deg, rgba(15, 23, 42, 0.92), rgba(2, 6, 23, 0.96));
+  border: 1px solid rgba(var(--glow), 0.55);
+  box-shadow:
+    0 0 0 1px rgba(var(--glow), 0.15) inset,
+    0 0 18px rgba(var(--glow), 0.35),
+    0 0 48px rgba(var(--glow-2), 0.18),
+    0 0 96px rgba(var(--glow), 0.12);
+  animation: neon-pulse 4s ease-in-out infinite;
+  isolation: isolate;
+}
+
+.neon::before {
+  /* liseré animé en dégradé conique */
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: conic-gradient(
+    from var(--angle, 0deg),
+    rgba(var(--glow), 0.9),
+    rgba(var(--glow-2), 0.2),
+    rgba(var(--glow), 0.9),
+    rgba(var(--glow-2), 0.2),
+    rgba(var(--glow), 0.9)
+  );
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: neon-spin 8s linear infinite;
+  pointer-events: none;
+  z-index: -1;
+}
+
+.neon.loss {
+  --glow: 251, 113, 133; /* rose-400 */
+  --glow-2: 236, 72, 153; /* pink-500 */
+}
+
+@property --angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@keyframes neon-spin {
+  to {
+    --angle: 360deg;
+  }
+}
+
+@keyframes neon-pulse {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 1px rgba(var(--glow), 0.15) inset,
+      0 0 18px rgba(var(--glow), 0.35),
+      0 0 48px rgba(var(--glow-2), 0.18),
+      0 0 96px rgba(var(--glow), 0.12);
+  }
+  50% {
+    box-shadow:
+      0 0 0 1px rgba(var(--glow), 0.25) inset,
+      0 0 24px rgba(var(--glow), 0.5),
+      0 0 64px rgba(var(--glow-2), 0.26),
+      0 0 120px rgba(var(--glow), 0.18);
+  }
+}
+
+.neon-text {
+  text-shadow: 0 0 12px rgba(var(--glow), 0.65), 0 0 28px rgba(var(--glow), 0.35);
+}
+
+.chart-glow .recharts-area-curve {
+  filter: drop-shadow(0 0 6px rgba(var(--glow), 0.7));
+}
+
+.badge-glow {
+  background: rgba(var(--glow), 0.12);
+  border: 1px solid rgba(var(--glow), 0.5);
+  box-shadow: 0 0 14px rgba(var(--glow), 0.35);
+  color: rgb(var(--glow));
+}
+
+.flash-up {
+  animation: flash-up 0.9s ease-out;
+}
+.flash-down {
+  animation: flash-down 0.9s ease-out;
+}
+@keyframes flash-up {
+  from {
+    background: rgba(52, 211, 153, 0.18);
+  }
+}
+@keyframes flash-down {
+  from {
+    background: rgba(251, 113, 133, 0.18);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .neon,
+  .neon::before,
+  .flash-up,
+  .flash-down {
+    animation: none;
+  }
+}
+
+input[type='date']::-webkit-calendar-picker-indicator {
+  filter: invert(0.7);
+}
