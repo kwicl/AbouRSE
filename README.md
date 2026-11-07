@@ -27,6 +27,14 @@ Si le flux est injoignable, l'app affiche les derniers cours réels connus (badg
 
 Quiconque possède le code peut lire et modifier le portefeuille : il faut le garder privé.
 
+## Conservation des données lors d'un déploiement
+
+- Les positions et ventes sont stockées sur l'appareil (localStorage) et, si la synchro est activée, dans Upstash Redis. Un déploiement GitHub/Vercel ne touche à aucun des deux : les données restent tant que l'adresse de l'app et l'intégration Redis restent les mêmes.
+- Les nouvelles fonctions lisent les anciennes données : les nouveaux champs sont optionnels (`src/lib/storage.ts`, `migrate()`).
+- Cours et historiques sont rechargés depuis le marché : ils ne sont pas perdus non plus.
+- Filet de sécurité : panneau Synchronisation, section « Sauvegarde » (copier / télécharger / importer), et copie automatique avant tout remplacement des données (synchro, import, réinitialisation).
+- Activer la synchro sur l'iPhone : les données vivent alors aussi sur le serveur, même si Safari efface le stockage local.
+
 ## Déploiement Vercel
 
 1. Importer le dépôt GitHub dans Vercel (framework Vite détecté, Node 22).

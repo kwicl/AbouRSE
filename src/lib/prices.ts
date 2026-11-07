@@ -3,7 +3,7 @@ import { load, save } from './storage';
 import { todayISO } from './format';
 
 const KEY = 'price-history';
-const FETCHED_KEY = 'price-history-fetched';
+const FETCHED_KEY = 'price-history-fetched-v2'; // v2 : historique avec ouverture/haut/bas
 
 export function loadPrices(): PriceHistory {
   return load<PriceHistory>(KEY, {});
@@ -34,7 +34,13 @@ export async function ensureHistories(tickers: string[]): Promise<PriceHistory> 
         if (series.length) {
           // le point « aujourd'hui » enregistré depuis le flux direct reste prioritaire
           const live = hist[t]?.find((p) => p.date === today);
-          hist[t] = live ? [...series.filter((p) => p.date !== today), live] : series;
+          const srv = series.find((p) => p.date === today);
+          const merged: PricePoint | undefined = live
+            ? srv
+              ? { ...srv, price: live.price, h: Math.max(srv.h ?? live.price, live.price), l: Math.min(srv.l ?? live.price, live.price) }
+              : live
+            : undefined;
+          hist[t] = merged ? [...series.filter((p) => p.date !== today), merged] : series;
           fetched[t] = today;
         }
       } catch {
@@ -54,8 +60,10 @@ export function recordPrices(quotes: QuoteMap, tickers: string[]): PriceHistory 
   for (const t of tickers) {
     const q = quotes[t];
     if (!q) continue;
+    const prev = (hist[t] ?? []).find((p) => p.date === date);
     const series = (hist[t] ?? []).filter((p) => p.date !== date);
-    series.push({ date, price: q.price });
+    const o = prev?.o ?? q.prevClose;
+    series.push({ date, price: q.price, o, h: Math.max(prev?.h ?? o, q.price), l: Math.min(prev?.l ?? o, q.price) });
     hist[t] = series;
   }
   save(KEY, hist);

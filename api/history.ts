@@ -10,7 +10,7 @@ const frame = (m: string, p: unknown[]) => {
   return `~m~${s.length}~m~${s}`;
 };
 
-function fetchBars(symbol: string): Promise<[number, number][]> {
+function fetchBars(symbol: string): Promise<number[][]> {
   return new Promise((resolve, reject) => {
     const session = 'cs_' + Math.random().toString(36).slice(2, 14);
     // l'implémentation WebSocket de Node (undici) accepte des en-têtes ; TradingView exige l'Origin
@@ -51,7 +51,7 @@ function fetchBars(symbol: string): Promise<[number, number][]> {
         if (j.m === 'timescale_update') {
           const bars = (j.p?.[1] as { ser?: { s?: { v: number[] }[] } })?.ser?.s ?? [];
           // v = [horodatage (s), ouverture, plus haut, plus bas, clôture, volume]
-          return done(() => resolve(bars.map((b) => [b.v[0], b.v[4]])));
+          return done(() => resolve(bars.map((b) => [b.v[0], b.v[4], b.v[1], b.v[2], b.v[3]])));
         }
       }
     };
@@ -65,7 +65,10 @@ export async function GET(request: Request): Promise<Response> {
     const bars = await fetchBars(`CSEMA:${ticker}`);
     const points = bars
       .filter(([, close]) => close > 0)
-      .map(([t, close]) => ({ date: new Date(t * 1000).toISOString().slice(0, 10), price: Math.round(close * 100) / 100 }));
+      .map(([t, close, o, h, l]) => {
+        const r = (v: number) => Math.round(v * 100) / 100;
+        return { date: new Date(t * 1000).toISOString().slice(0, 10), price: r(close), o: r(o), h: r(h), l: r(l) };
+      });
     return json({ ticker, points }, 200, 'public, s-maxage=3600, stale-while-revalidate=86400');
   } catch (e) {
     return json({ error: e instanceof Error ? e.message : 'Historique indisponible' }, 502);

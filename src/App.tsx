@@ -3,6 +3,7 @@ import { Info, RotateCcw } from 'lucide-react';
 import { TopBar } from './components/TopBar';
 import { HeroChart } from './components/HeroChart';
 import { Metrics } from './components/Metrics';
+import { PnlBreakdown } from './components/PnlBreakdown';
 import { PositionsTable } from './components/PositionsTable';
 import { PositionModal } from './components/PositionModal';
 import { SellModal } from './components/SellModal';
@@ -12,7 +13,7 @@ import { isMarketOpen, useMarket } from './lib/market';
 import { buildRows, totals as computeTotals } from './lib/portfolio';
 import { clearIntraday, computeDaily, loadIntraday, recordIntraday } from './lib/history';
 import { clearPrices, ensureHistories, loadPrices, recordPrices } from './lib/prices';
-import { load, save } from './lib/storage';
+import { load, loadBackup, save, saveBackup, type Backup } from './lib/storage';
 import { UNIVERSE_MAP } from './lib/universe';
 import { getSyncCode, isValidCode, newSyncCode, normalizeCode, pull, push, setSyncCode, type SyncDoc } from './lib/sync';
 import type { IntradayPoint, Position, PriceHistory, Sale } from './lib/types';
@@ -56,6 +57,7 @@ export default function App() {
   const [intraday, setIntraday] = useState<IntradayPoint[]>(loadIntraday);
   const [prices, setPrices] = useState<PriceHistory>(loadPrices);
   const [showSync, setShowSync] = useState(false);
+  const [backup, setBackup] = useState<Backup | null>(loadBackup);
   const [syncCode, setCode] = useState<string | null>(getSyncCode);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>({ state: getSyncCode() ? 'ok' : 'off', at: null });
 
@@ -106,6 +108,11 @@ export default function App() {
   const localDoc = (): SyncDoc => ({ updatedAt: load<number>('local-updated-at', 0), ...stateRef.current });
 
   const applyRemote = (doc: SyncDoc) => {
+    const cur = stateRef.current;
+    if (JSON.stringify([cur.positions, cur.sales]) !== JSON.stringify([doc.positions, doc.sales])) {
+      saveBackup('avant remplacement par la synchro', cur.positions, cur.sales);
+      setBackup(loadBackup());
+    }
     applyingRemote.current = true;
     setPositions(doc.positions);
     setSales(doc.sales);
@@ -232,10 +239,46 @@ export default function App() {
       ? "Effacer toutes les positions et ventes ? L'effacement sera aussi synchronisé sur vos autres appareils."
       : 'Effacer toutes les positions et ventes ? Cette action est irréversible.';
     if (!window.confirm(msg)) return;
+    saveBackup('avant réinitialisation', positions, sales);
+    setBackup(loadBackup());
     setPositions([]);
     setSales([]);
     clearIntraday();
     setIntraday([]);
+  };
+
+  /* ── Sauvegarde / restauration manuelle ──────────────────────────────── */
+
+  const exportJson = () => JSON.stringify({ app: 'abourse', version: 1, exportedAt: new Date().toISOString(), positions, sales }, null, 2);
+
+  /** retourne un message d'erreur, ou null si l'import a réussi */
+  const importJson = (text: string): string | null => {
+    let doc: { positions?: unknown; sales?: unknown };
+    try {
+      doc = JSON.parse(text);
+    } catch {
+      return 'Texte invalide : collez la sauvegarde complète.';
+    }
+    const num = (v: unknown) => typeof v === 'number' && Number.isFinite(v);
+    const str = (v: unknown) => typeof v === 'string' && v.length > 0;
+    const okPos = (p: Position) => str(p?.id) && str(p.ticker) && num(p.qty) && num(p.buyPrice) && str(p.buyDate);
+    const okSale = (s: Sale) => str(s?.id) && str(s.positionId) && str(s.ticker) && num(s.qty) && num(s.buyPrice) && num(s.sellPrice) && str(s.date);
+    if (!Array.isArray(doc.positions) || !Array.isArray(doc.sales)) return 'Format inattendu (positions / ventes manquantes).';
+    if (!(doc.positions as Position[]).every(okPos) || !(doc.sales as Sale[]).every(okSale)) return 'Certaines lignes sont incomplètes : import annulé.';
+    saveBackup('avant import', positions, sales);
+    setBackup(loadBackup());
+    setPositions(doc.positions as Position[]);
+    setSales(doc.sales as Sale[]);
+    return null;
+  };
+
+  const restoreBackup = () => {
+    const b = loadBackup();
+    if (!b || !window.confirm(`Restaurer la copie du ${new Date(b.at).toLocaleString('fr-MA')} (${b.reason}) ?`)) return;
+    saveBackup('avant restauration', positions, sales);
+    setPositions(b.positions as Position[]);
+    setSales(b.sales as Sale[]);
+    setBackup(loadBackup());
   };
 
   return (
@@ -265,6 +308,7 @@ export default function App() {
           </div>
         )}
         <HeroChart daily={daily} intraday={intraday} totals={totals} />
+        <PnlBreakdown rows={rows} prices={prices} />
         <Metrics t={totals} realized={realizedTotal} soldCost={soldCost} />
         <PositionsTable
           rows={rows}
@@ -311,6 +355,10 @@ export default function App() {
           onJoin={(c) => void join(c)}
           onSyncNow={() => void syncNow()}
           onDisconnect={disconnect}
+          onExport={exportJson}
+          onImport={importJson}
+          backup={backup}
+          onRestore={restoreBackup}
           onClose={() => setShowSync(false)}
         />
       )}

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Check, Cloud, Copy, Link2, LogOut, RefreshCw, Share2, X } from 'lucide-react';
+import { Check, Cloud, Copy, Download, History, Link2, LogOut, RefreshCw, Share2, Upload, X } from 'lucide-react';
+import type { Backup } from '../lib/storage';
 import { isValidCode, normalizeCode } from '../lib/sync';
 
 export interface SyncStatus {
@@ -16,9 +17,82 @@ interface Props {
   onSyncNow: () => void;
   onDisconnect: () => void;
   onClose: () => void;
+  onExport: () => string;
+  /** retourne un message d'erreur, ou null si OK */
+  onImport: (json: string) => string | null;
+  backup: Backup | null;
+  onRestore: () => void;
 }
 
-export function SyncPanel({ code, status, onCreate, onJoin, onSyncNow, onDisconnect, onClose }: Props) {
+
+/** Sauvegarde manuelle (fichier / texte) : filet de sécurité indépendant de la synchro */
+function BackupSection({ onExport, onImport, backup, onRestore }: Pick<Props, 'onExport' | 'onImport' | 'backup' | 'onRestore'>) {
+  const [text, setText] = useState('');
+  const [msg, setMsg] = useState<{ ok: boolean; t: string } | null>(null);
+
+  const copyJson = async () => {
+    const json = onExport();
+    try {
+      await navigator.clipboard.writeText(json);
+      setMsg({ ok: true, t: 'Sauvegarde copiée dans le presse-papiers.' });
+    } catch {
+      window.prompt('Copiez la sauvegarde :', json);
+    }
+  };
+
+  const downloadJson = () => {
+    try {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob([onExport()], { type: 'application/json' }));
+      a.download = `abourse-sauvegarde-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    } catch {
+      setMsg({ ok: false, t: 'Téléchargement impossible : utilisez « Copier ».' });
+    }
+  };
+
+  const doImport = () => {
+    const err = onImport(text.trim());
+    setMsg(err ? { ok: false, t: err } : { ok: true, t: 'Données importées.' });
+    if (!err) setText('');
+  };
+
+  const btn = 'flex items-center justify-center gap-1.5 rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-200 hover:bg-slate-800';
+  return (
+    <div className="mt-6 border-t border-slate-800 pt-4">
+      <h4 className="text-sm font-semibold text-slate-200">Sauvegarde</h4>
+      <p className="mt-1 text-xs text-slate-500">Vos positions et ventes ne sont jamais effacées par une mise à jour. Gardez aussi une copie de secours.</p>
+      <div className="mt-3 grid grid-cols-2 gap-2">
+        <button onClick={copyJson} className={btn}>
+          <Copy className="h-4 w-4" /> Copier
+        </button>
+        <button onClick={downloadJson} className={btn}>
+          <Download className="h-4 w-4" /> Télécharger
+        </button>
+      </div>
+      <textarea
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        placeholder="Collez ici une sauvegarde pour la restaurer"
+        rows={2}
+        spellCheck={false}
+        className="mt-3 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-slate-100 outline-none focus:border-sky-500/70"
+      />
+      <button onClick={doImport} disabled={!text.trim()} className={`${btn} mt-2 w-full disabled:opacity-40`}>
+        <Upload className="h-4 w-4" /> Importer
+      </button>
+      {backup && (
+        <button onClick={onRestore} className="mt-2 flex items-center gap-1.5 text-xs text-slate-400 hover:text-sky-300">
+          <History className="h-3.5 w-3.5" /> Restaurer la copie automatique du {new Date(backup.at).toLocaleString('fr-MA')} ({backup.reason})
+        </button>
+      )}
+      {msg && <p className={`mt-2 text-xs ${msg.ok ? 'text-emerald-400' : 'text-rose-400'}`}>{msg.t}</p>}
+    </div>
+  );
+}
+
+export function SyncPanel({ code, status, onCreate, onJoin, onSyncNow, onDisconnect, onClose, onExport, onImport, backup, onRestore }: Props) {
   const [input, setInput] = useState('');
   const [copied, setCopied] = useState<'code' | 'link' | null>(null);
 
@@ -137,10 +211,11 @@ export function SyncPanel({ code, status, onCreate, onJoin, onSyncNow, onDisconn
                 Rejoindre
               </button>
             </form>
-            <p className="mt-2 text-xs text-slate-500">Les positions de cet appareil seront remplacées par celles du compte rejoint.</p>
+            <p className="mt-2 text-xs text-slate-500">Les positions de cet appareil seront remplacées par celles du compte rejoint (une copie automatique est conservée dans « Sauvegarde »).</p>
             {status.state === 'error' && <p className="mt-3 text-sm text-rose-400">{status.message}</p>}
           </>
         )}
+        <BackupSection onExport={onExport} onImport={onImport} backup={backup} onRestore={onRestore} />
       </div>
     </div>
   );

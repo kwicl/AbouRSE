@@ -2,6 +2,10 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
 import './index.css';
+import { migrate, requestPersistence } from './lib/storage';
+
+migrate();
+requestPersistence();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

@@ -35,7 +35,11 @@ export type Range = '1D' | '1W' | '1M' | 'YTD' | 'ALL';
 
 export interface PricePoint {
   date: string; // YYYY-MM-DD
-  price: number;
+  price: number; // clôture
+  /** ouverture / plus haut / plus bas de la séance (bougies) */
+  o?: number;
+  h?: number;
+  l?: number;
 }
 
 export type PriceHistory = Record<string, PricePoint[]>;
