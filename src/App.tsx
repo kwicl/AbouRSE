@@ -282,7 +282,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 bg-[radial-gradient(60%_40%_at_50%_0%,rgba(16,185,129,0.06),transparent)]">
+    <div className="min-h-screen">
       <TopBar
         quotes={market.quotes}
         mode={market.mode}
@@ -340,6 +340,7 @@ export default function App() {
           key={modal.id ?? modal.ticker ?? 'new'}
           initial={modal}
           currentPrice={modal.ticker ? market.quotes[modal.ticker]?.price : undefined}
+          quotes={market.quotes}
           onSave={savePosition}
           onClose={() => setModal(null)}
         />

@@ -26,7 +26,7 @@ export function Sparkline({ points, baseline, className = '' }: Props) {
   const line = points.map((p, i) => `${i ? 'L' : 'M'}${x(i).toFixed(2)},${y(p.price).toFixed(2)}`).join('');
   const area = `${line}L${W},${H}L0,${H}Z`;
   const up = prices[prices.length - 1] >= (baseline ?? prices[0]);
-  const color = up ? '#34d399' : '#fb7185';
+  const color = up ? '#4ade80' : '#f87171';
 
   return (
     <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className={`pointer-events-none ${className}`} aria-hidden>
@@ -38,7 +38,7 @@ export function Sparkline({ points, baseline, className = '' }: Props) {
       </defs>
       <path d={area} fill={`url(#${id})`} />
       {baseline != null && (
-        <line x1="0" x2={W} y1={y(baseline)} y2={y(baseline)} stroke="#94a3b8" strokeOpacity="0.35" strokeDasharray="3 3" vectorEffect="non-scaling-stroke" />
+        <line x1="0" x2={W} y1={y(baseline)} y2={y(baseline)} stroke="#8597a8" strokeOpacity="0.35" strokeDasharray="3 3" vectorEffect="non-scaling-stroke" />
       )}
       <path d={line} fill="none" stroke={color} strokeOpacity="0.75" strokeWidth="1.5" vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
     </svg>

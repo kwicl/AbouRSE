@@ -88,3 +88,22 @@ const RAW: [isin: string, ticker: string, name: string, sector: string][] = [
 export const UNIVERSE: Instrument[] = RAW.map(([isin, ticker, name, sector]) => ({ isin, ticker, name, sector }));
 
 export const UNIVERSE_MAP: Record<string, Instrument> = Object.fromEntries(UNIVERSE.map((i) => [i.ticker, i]));
+
+/** Libellé des titres présents dans le flux de cotation mais absents de la liste ci-dessus (introductions en bourse, oublis). */
+export const FEED_SECTOR = 'Nouvelle cotation';
+
+/**
+ * Tous les titres cotés : la liste ci-dessus, plus chaque titre du flux TradingView
+ * qui n'y figure pas. Une introduction en bourse apparaît ainsi dès sa première cotation,
+ * sans mise à jour de l'app.
+ */
+export function listings(quotes: Record<string, { ticker: string; name: string }>): Instrument[] {
+  const extra = Object.values(quotes)
+    .filter((q) => !UNIVERSE_MAP[q.ticker])
+    .map((q) => ({ ticker: q.ticker, name: q.name, isin: '', sector: FEED_SECTOR }))
+    .sort((a, b) => a.ticker.localeCompare(b.ticker));
+  return [...UNIVERSE, ...extra];
+}
+
+/** Format accepté pour un ticker saisi à la main (titre pas encore dans le flux). */
+export const TICKER_RE = /^[A-Z0-9]{2,6}$/;

@@ -192,7 +192,7 @@ export function PositionsTable({ rows, prices, realized, onAdd, onEdit, onSell, 
         </div>
         <button
           onClick={onAdd}
-          className="flex shrink-0 items-center gap-1.5 rounded-full bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 shadow-[0_0_18px_rgba(16,185,129,0.45)] transition hover:bg-emerald-400"
+          className="flex shrink-0 items-center gap-1.5 rounded-full bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 shadow-[0_0_18px_rgba(22,163,74,0.35)] transition hover:bg-emerald-400"
         >
           <Plus className="h-4 w-4" /> Ajouter
         </button>

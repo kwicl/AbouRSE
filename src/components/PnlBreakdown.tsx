@@ -3,9 +3,9 @@ import type { Row } from '../lib/portfolio';
 import type { PriceHistory, PricePoint } from '../lib/types';
 import { fmtMAD, fmtPct, fmtSigned, toneClass } from '../lib/format';
 
-const GREEN = '#34d399';
-const RED = '#fb7185';
-const AMBER = '#fbbf24';
+const GREEN = '#4ade80';
+const RED = '#f87171';
+const AMBER = '#f5a85a';
 
 type RangeKey = '1M' | '3M' | '6M' | '1A' | 'ACHAT';
 const RANGES: { key: RangeKey; label: string }[] = [
@@ -126,12 +126,12 @@ function CandleChart({ candles, buyPrice, lastPrice }: { candles: Candle[]; buyP
       <svg width={w} height={H} onPointerMove={onMove} onPointerLeave={() => setHover(null)} className="touch-pan-y select-none">
         {ticks.map((t) => (
           <g key={t}>
-            <line x1={M.l} x2={M.l + iw} y1={y(t)} y2={y(t)} stroke="#1e293b" strokeWidth={1} />
-            <text x={M.l + iw + 6} y={y(t) + 4} fontSize={10.5} fill="#64748b" className="num">{fmtMAD(t)}</text>
+            <line x1={M.l} x2={M.l + iw} y1={y(t)} y2={y(t)} stroke="rgba(226,236,245,0.12)" strokeWidth={1} />
+            <text x={M.l + iw + 6} y={y(t) + 4} fontSize={10.5} fill="#b3c2cf" className="num">{fmtMAD(t)}</text>
           </g>
         ))}
         {labelIdx.map((i, k) => (
-          <text key={k} x={x(i)} y={H - 6} fontSize={10.5} fill="#64748b" textAnchor={k === 0 ? 'start' : k === labelIdx.length - 1 ? 'end' : 'middle'}>
+          <text key={k} x={x(i)} y={H - 6} fontSize={10.5} fill="#b3c2cf" textAnchor={k === 0 ? 'start' : k === labelIdx.length - 1 ? 'end' : 'middle'}>
             {fmtDate(cs[i].date, long)}
           </text>
         ))}
@@ -139,7 +139,7 @@ function CandleChart({ candles, buyPrice, lastPrice }: { candles: Candle[]; buyP
         {/* prix d'achat */}
         <line x1={M.l} x2={M.l + iw} y1={y(buyPrice)} y2={y(buyPrice)} stroke={AMBER} strokeDasharray="5 4" strokeWidth={1.2} />
         <rect x={M.l + iw + 1} y={y(buyPrice) - 8} width={M.r - 2} height={16} rx={3} fill={AMBER} />
-        <text x={M.l + iw + 5} y={y(buyPrice) + 4} fontSize={10.5} fill="#0f172a" fontWeight={700} className="num">{fmtMAD(buyPrice)}</text>
+        <text x={M.l + iw + 5} y={y(buyPrice) + 4} fontSize={10.5} fill="#111a22" fontWeight={700} className="num">{fmtMAD(buyPrice)}</text>
 
         {cs.map((c, i) => {
           const col = c.c >= c.o ? GREEN : RED;
@@ -156,9 +156,9 @@ function CandleChart({ candles, buyPrice, lastPrice }: { candles: Candle[]; buyP
         {/* dernier cours */}
         <line x1={M.l} x2={M.l + iw} y1={y(lastPrice)} y2={y(lastPrice)} stroke={up ? GREEN : RED} strokeWidth={1} strokeOpacity={0.6} />
         <rect x={M.l + iw + 1} y={y(lastPrice) - 8} width={M.r - 2} height={16} rx={3} fill={up ? GREEN : RED} />
-        <text x={M.l + iw + 5} y={y(lastPrice) + 4} fontSize={10.5} fill="#0f172a" fontWeight={700} className="num">{fmtMAD(lastPrice)}</text>
+        <text x={M.l + iw + 5} y={y(lastPrice) + 4} fontSize={10.5} fill="#111a22" fontWeight={700} className="num">{fmtMAD(lastPrice)}</text>
 
-        {hover !== null && <line x1={x(hover)} x2={x(hover)} y1={M.t} y2={M.t + ih} stroke="#94a3b8" strokeDasharray="3 3" strokeOpacity={0.6} />}
+        {hover !== null && <line x1={x(hover)} x2={x(hover)} y1={M.t} y2={M.t + ih} stroke="#8597a8" strokeDasharray="3 3" strokeOpacity={0.6} />}
       </svg>
     </div>
   );
@@ -181,7 +181,7 @@ export function PnlBreakdown({ rows, prices }: { rows: Row[]; prices: PriceHisto
       <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-4">
         <div>
           <h2 className="text-base font-semibold text-slate-100">Plus/moins-value par titre</h2>
-          <p className="text-xs text-slate-500">Cours actuel vs prix d'achat (PRU) • en MAD • ligne jaune = prix d'achat</p>
+          <p className="text-xs text-slate-500">Cours actuel vs prix d'achat (PRU) • en MAD • ligne ambre = prix d'achat</p>
         </div>
         <div className={`num text-right text-sm font-semibold ${toneClass(total)}`}>
           {fmtSigned(total)} MAD

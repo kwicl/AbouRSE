@@ -1,12 +1,15 @@
 import { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import type { Position } from '../lib/types';
-import { UNIVERSE, UNIVERSE_MAP } from '../lib/universe';
+import { UNIVERSE_MAP, listings } from '../lib/universe';
+import type { QuoteMap } from '../lib/types';
 import { fmtMAD, todayISO } from '../lib/format';
 
 interface Props {
   initial: Partial<Position> | null;
   currentPrice?: number;
+  /** cours du flux : alimente la liste des titres (introductions en bourse comprises) */
+  quotes: QuoteMap;
   onSave: (p: Position) => void;
   onClose: () => void;
 }
@@ -14,7 +17,8 @@ interface Props {
 const field =
   'w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-emerald-500/70 focus:ring-2 focus:ring-emerald-500/20';
 
-export function PositionModal({ initial, currentPrice, onSave, onClose }: Props) {
+export function PositionModal({ initial, currentPrice, quotes, onSave, onClose }: Props) {
+  const all = listings(quotes);
   const [ticker, setTicker] = useState(initial?.ticker ?? '');
   const [name, setName] = useState(initial?.name ?? '');
   const [qty, setQty] = useState(initial?.qty?.toString() ?? '');
@@ -31,7 +35,8 @@ export function PositionModal({ initial, currentPrice, onSave, onClose }: Props)
   const onTicker = (v: string) => {
     const t = v.toUpperCase().trim();
     setTicker(t);
-    if (UNIVERSE_MAP[t]) setName(UNIVERSE_MAP[t].name);
+    const known = UNIVERSE_MAP[t] ?? quotes[t];
+    if (known) setName(known.name);
   };
 
   const submit = (e: React.FormEvent) => {
@@ -45,7 +50,7 @@ export function PositionModal({ initial, currentPrice, onSave, onClose }: Props)
     onSave({
       id: initial?.id ?? crypto.randomUUID(),
       ticker,
-      name: name.trim() || UNIVERSE_MAP[ticker]?.name || ticker,
+      name: name.trim() || UNIVERSE_MAP[ticker]?.name || quotes[ticker]?.name || ticker,
       qty: q,
       buyPrice: p,
       buyDate: date,
@@ -80,7 +85,7 @@ export function PositionModal({ initial, currentPrice, onSave, onClose }: Props)
             Ticker
             <input list="cse-tickers" value={ticker} onChange={(e) => onTicker(e.target.value)} className={`${field} mt-1 uppercase`} placeholder="ATW" autoFocus />
             <datalist id="cse-tickers">
-              {UNIVERSE.map((i) => (
+              {all.map((i) => (
                 <option key={i.ticker} value={i.ticker}>
                   {i.name}
                 </option>

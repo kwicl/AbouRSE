@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Clock, Cloud, CloudOff, RefreshCw, Search } from 'lucide-react';
 import type { SyncStatus } from './SyncPanel';
-import { UNIVERSE } from '../lib/universe';
+import { FEED_SECTOR, TICKER_RE, listings, type Instrument } from '../lib/universe';
 import type { FeedMode, QuoteMap } from '../lib/types';
 import { fmtMAD, fmtPct, toneClass } from '../lib/format';
 
@@ -23,13 +23,26 @@ export function TopBar({ quotes, mode, open, updatedAt, error, onRefresh, onPick
   const [active, setActive] = useState(0);
   const box = useRef<HTMLDivElement>(null);
 
-  const results = useMemo(() => {
+  // toute la cote : liste connue + titres du flux (introductions en bourse)
+  // nouvelles cotations en tête : visibles dès l'ouverture de la liste, sans rien taper
+  const all = useMemo(() => {
+    const list = listings(quotes);
+    return [...list.filter((i) => i.sector === FEED_SECTOR), ...list.filter((i) => i.sector !== FEED_SECTOR)];
+  }, [quotes]);
+
+  const results = useMemo((): (Instrument & { manual?: boolean })[] => {
     const s = q.trim().toLowerCase();
-    if (!s) return UNIVERSE.slice(0, 8);
-    return UNIVERSE.filter(
-      (i) => i.ticker.toLowerCase().includes(s) || i.name.toLowerCase().includes(s) || i.sector.toLowerCase().includes(s),
-    ).slice(0, 8);
-  }, [q]);
+    if (!s) return all.slice(0, 8);
+    const found: (Instrument & { manual?: boolean })[] = all
+      .filter((i) => i.ticker.toLowerCase().includes(s) || i.name.toLowerCase().includes(s) || i.sector.toLowerCase().includes(s))
+      .slice(0, 8);
+    // titre introduit mais pas encore dans le flux : ajout manuel par ticker
+    const t = q.trim().toUpperCase();
+    if (TICKER_RE.test(t) && !found.some((i) => i.ticker === t)) {
+      found.push({ ticker: t, name: 'Ajouter ce ticker (pas encore coté dans le flux)', isin: '', sector: '', manual: true });
+    }
+    return found;
+  }, [q, all]);
 
   useEffect(() => setActive(0), [q]);
 
@@ -61,7 +74,7 @@ export function TopBar({ quotes, mode, open, updatedAt, error, onRefresh, onPick
           <img
             src="/avatar.png"
             alt="AbouRSE"
-            className="h-9 w-9 rounded-full object-cover ring-2 ring-emerald-400/60 shadow-[0_0_14px_rgba(52,211,153,0.45)]"
+            className="h-9 w-9 rounded-full object-cover ring-2 ring-emerald-400/60 shadow-[0_0_14px_rgba(22,163,74,0.35)]"
           />
           <span className="text-lg font-extrabold tracking-tight">
             Abou<span className="text-emerald-400">RSE</span>
@@ -77,10 +90,14 @@ export function TopBar({ quotes, mode, open, updatedAt, error, onRefresh, onPick
             onKeyDown={(e) => {
               if (e.key === 'ArrowDown') setActive((a) => Math.min(a + 1, results.length - 1));
               else if (e.key === 'ArrowUp') setActive((a) => Math.max(a - 1, 0));
-              else if (e.key === 'Enter' && results[active]) pick(results[active].ticker);
+              else if (e.key === 'Enter' && results[active]) {
+                // sans preventDefault, la même touche valide le formulaire qui vient de s'ouvrir
+                e.preventDefault();
+                pick(results[active].ticker);
+              }
               else if (e.key === 'Escape') setFocus(false);
             }}
-            placeholder="Rechercher un titre BVC (IAM, TGCC, SGTM…)"
+            placeholder="Rechercher un titre BVC (IAM, TGCC, SGTM, IPO…)"
             enterKeyHint="search"
             autoCapitalize="characters"
             autoCorrect="off"
@@ -88,7 +105,7 @@ export function TopBar({ quotes, mode, open, updatedAt, error, onRefresh, onPick
             className="w-full rounded-full border border-slate-800 bg-slate-900/80 py-2 pl-9 pr-4 text-sm text-slate-200 placeholder:text-slate-500 outline-none transition focus:border-emerald-500/60 focus:ring-2 focus:ring-emerald-500/20"
           />
           {focus && results.length > 0 && (
-            <ul className="absolute left-0 right-0 top-full mt-2 overflow-hidden rounded-xl border border-slate-800 bg-slate-900/95 shadow-2xl backdrop-blur">
+            <ul className="absolute left-0 right-0 top-full mt-2 overflow-hidden max-h-[70vh] overflow-y-auto rounded-xl border border-slate-700 bg-slate-900 shadow-2xl">
               {results.map((i, idx) => {
                 const quote = quotes[i.ticker];
                 const ch = quote ? ((quote.price - quote.prevClose) / quote.prevClose) * 100 : 0;
@@ -100,9 +117,12 @@ export function TopBar({ quotes, mode, open, updatedAt, error, onRefresh, onPick
                       className={`flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm ${idx === active ? 'bg-slate-800/80' : ''}`}
                     >
                       <span className="w-12 font-semibold text-slate-100">{i.ticker}</span>
-                      <span className="flex-1 truncate text-slate-400">{i.name}</span>
+                      <span className={`min-w-0 flex-1 truncate ${i.manual ? 'italic text-sky-300' : 'text-slate-400'}`}>{i.name}</span>
+                      {i.sector === FEED_SECTOR && (
+                        <span className="shrink-0 rounded-full bg-sky-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-sky-300">NOUVEAU</span>
+                      )}
                       {quote && (
-                        <span className="num text-right text-xs">
+                        <span className="num shrink-0 text-right text-xs">
                           <span className="text-slate-200">{fmtMAD(quote.price)}</span>{' '}
                           <span className={toneClass(ch)}>{fmtPct(ch)}</span>
                         </span>

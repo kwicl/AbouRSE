@@ -48,7 +48,7 @@ export function HeroChart({ daily, intraday, totals }: Props) {
 
   const gain = totals.pnl >= 0;
   const lineUp = (last?.roi ?? totals.pnlPct) >= 0;
-  const stroke = lineUp ? '#34d399' : '#fb7185';
+  const stroke = lineUp ? '#4ade80' : '#f87171';
 
   // dégradé partagé à 0 % : vert au-dessus, rouge en dessous (style « baseline »)
   const { min, max } = data.reduce(
@@ -118,24 +118,24 @@ export function HeroChart({ daily, intraday, totals }: Props) {
             <AreaChart data={data} margin={{ top: 8, right: 4, left: -8, bottom: 0 }}>
               <defs>
                 <linearGradient id="roiStroke" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset={zeroOff} stopColor="#34d399" />
-                  <stop offset={zeroOff} stopColor="#fb7185" />
+                  <stop offset={zeroOff} stopColor="#4ade80" />
+                  <stop offset={zeroOff} stopColor="#f87171" />
                 </linearGradient>
                 <linearGradient id="roiFill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset={0} stopColor="#34d399" stopOpacity={0.35} />
-                  <stop offset={zeroOff} stopColor="#34d399" stopOpacity={0.02} />
-                  <stop offset={zeroOff} stopColor="#fb7185" stopOpacity={0.02} />
-                  <stop offset={1} stopColor="#fb7185" stopOpacity={0.35} />
+                  <stop offset={0} stopColor="#4ade80" stopOpacity={0.35} />
+                  <stop offset={zeroOff} stopColor="#4ade80" stopOpacity={0.02} />
+                  <stop offset={zeroOff} stopColor="#f87171" stopOpacity={0.02} />
+                  <stop offset={1} stopColor="#f87171" stopOpacity={0.35} />
                 </linearGradient>
               </defs>
-              <CartesianGrid stroke="#1e293b" strokeDasharray="0" vertical={false} />
+              <CartesianGrid stroke="rgba(226,236,245,0.12)" strokeDasharray="0" vertical={false} />
               <XAxis
                 dataKey="t"
                 type="number"
                 scale="time"
                 domain={['dataMin', 'dataMax']}
                 tickFormatter={fmtTick}
-                tick={{ fill: '#64748b', fontSize: 11 }}
+                tick={{ fill: '#b3c2cf', fontSize: 11 }}
                 axisLine={false}
                 tickLine={false}
                 minTickGap={40}
@@ -143,14 +143,14 @@ export function HeroChart({ daily, intraday, totals }: Props) {
               <YAxis
                 domain={[min - pad, max + pad]}
                 tickFormatter={(v: number) => `${v.toFixed(1)}%`}
-                tick={{ fill: '#64748b', fontSize: 11 }}
+                tick={{ fill: '#b3c2cf', fontSize: 11 }}
                 axisLine={false}
                 tickLine={false}
                 width={52}
               />
-              <ReferenceLine y={0} stroke="#475569" strokeDasharray="4 4" />
+              <ReferenceLine y={0} stroke="#8597a8" strokeDasharray="4 4" />
               <Tooltip
-                cursor={{ stroke: '#94a3b8', strokeWidth: 1, strokeDasharray: '3 3' }}
+                cursor={{ stroke: '#8597a8', strokeWidth: 1, strokeDasharray: '3 3' }}
                 content={({ active, payload }) => {
                   if (!active || !payload?.length) return null;
                   const p = payload[0].payload as Pt;
@@ -186,7 +186,7 @@ export function HeroChart({ daily, intraday, totals }: Props) {
                 fill="url(#roiFill)"
                 baseValue={0}
                 isAnimationActive={false}
-                activeDot={{ r: 5, fill: stroke, stroke: '#020617', strokeWidth: 2 }}
+                activeDot={{ r: 5, fill: stroke, stroke: '#111a22', strokeWidth: 2 }}
               />
             </AreaChart>
           </ResponsiveContainer>

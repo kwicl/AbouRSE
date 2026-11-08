@@ -1,6 +1,6 @@
 // Service worker AbouRSE : app utilisable hors ligne (coquille + derniers fichiers chargés).
-const CACHE = 'abourse-v2';
-const SHELL = ['/', '/index.html', '/manifest.webmanifest', '/icon-192.png', '/icon-512.png', '/apple-touch-icon.png', '/avatar.png'];
+const CACHE = 'abourse-v5';
+const SHELL = ['/', '/index.html', '/manifest.webmanifest', '/icon-192.png', '/icon-512.png', '/apple-touch-icon.png', '/avatar.png', '/bg-night.jpg'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));

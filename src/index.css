@@ -13,8 +13,10 @@ html {
 }
 
 body {
-  background: #020617;
-  color: #e2e8f0;
+  background: #16212b;
+  color: #e6edf3;
+  /* halo sombre : garde les textes lisibles sur la brume claire de la photo */
+  text-shadow: 0 0 4px rgba(8, 14, 20, 0.6);
   font-family: Inter, system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   overscroll-behavior-y: none;
@@ -28,6 +30,33 @@ a {
   touch-action: manipulation;
   -webkit-user-select: none;
   user-select: none;
+}
+
+/* ── Fond « Nuit » ────────────────────────────────────────────────────────
+ * Photo en calque fixe (iOS ignore background-attachment: fixed), affichée
+ * pleinement. La photo est sombre : textes clairs, aucun voile. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: url('/bg-night.jpg') center 55% / cover no-repeat;
+}
+
+/* Panneaux en verre quasi transparent (graphiques compris) : seul un léger
+ * flou et un liseré clair détachent le contenu de la photo. */
+[class*='bg-slate-900/'],
+[class*='bg-slate-950/'] {
+  background-color: rgba(12, 20, 28, 0.2);
+  border-color: rgba(214, 226, 236, 0.16);
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
+}
+
+::selection {
+  background: rgba(245, 168, 90, 0.35);
+  color: #e6edf3;
 }
 
 .safe-top {
@@ -53,19 +82,17 @@ a {
 
 /* ── Conteneur néon ─────────────────────────────────────────────────────── */
 .neon {
-  --glow: 52, 211, 153; /* emerald-400 */
-  --glow-2: 34, 211, 238; /* cyan-400 */
+  --glow: 74, 222, 128; /* vert gain */
+  --glow-2: 34, 197, 94;
   position: relative;
   border-radius: 1.25rem;
-  background:
-    radial-gradient(120% 80% at 0% 0%, rgba(var(--glow), 0.08), transparent 60%),
-    linear-gradient(180deg, rgba(15, 23, 42, 0.92), rgba(2, 6, 23, 0.96));
+  background: rgba(12, 20, 28, 0.18);
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
   border: 1px solid rgba(var(--glow), 0.55);
   box-shadow:
-    0 0 0 1px rgba(var(--glow), 0.15) inset,
-    0 0 18px rgba(var(--glow), 0.35),
-    0 0 48px rgba(var(--glow-2), 0.18),
-    0 0 96px rgba(var(--glow), 0.12);
+    0 0 0 1px rgba(214, 226, 236, 0.1) inset,
+    0 8px 30px rgba(var(--glow), 0.18);
   animation: neon-pulse 4s ease-in-out infinite;
   isolation: isolate;
 }
@@ -94,8 +121,8 @@ a {
 }
 
 .neon.loss {
-  --glow: 251, 113, 133; /* rose-400 */
-  --glow-2: 236, 72, 153; /* pink-500 */
+  --glow: 248, 113, 113; /* rouge perte */
+  --glow-2: 239, 68, 68;
 }
 
 @property --angle {
@@ -114,32 +141,28 @@ a {
   0%,
   100% {
     box-shadow:
-      0 0 0 1px rgba(var(--glow), 0.15) inset,
-      0 0 18px rgba(var(--glow), 0.35),
-      0 0 48px rgba(var(--glow-2), 0.18),
-      0 0 96px rgba(var(--glow), 0.12);
+      0 0 0 1px rgba(214, 226, 236, 0.1) inset,
+      0 8px 30px rgba(var(--glow), 0.18);
   }
   50% {
     box-shadow:
-      0 0 0 1px rgba(var(--glow), 0.25) inset,
-      0 0 24px rgba(var(--glow), 0.5),
-      0 0 64px rgba(var(--glow-2), 0.26),
-      0 0 120px rgba(var(--glow), 0.18);
+      0 0 0 1px rgba(214, 226, 236, 0.16) inset,
+      0 10px 40px rgba(var(--glow), 0.28);
   }
 }
 
 .neon-text {
-  text-shadow: 0 0 12px rgba(var(--glow), 0.65), 0 0 28px rgba(var(--glow), 0.35);
+  text-shadow: 0 0 14px rgba(var(--glow), 0.35), 0 1px 2px rgba(8, 14, 20, 0.6);
 }
 
 .chart-glow .recharts-area-curve {
-  filter: drop-shadow(0 0 6px rgba(var(--glow), 0.7));
+  filter: drop-shadow(0 1px 2px rgba(var(--glow), 0.35));
 }
 
 .badge-glow {
   background: rgba(var(--glow), 0.12);
   border: 1px solid rgba(var(--glow), 0.5);
-  box-shadow: 0 0 14px rgba(var(--glow), 0.35);
+  box-shadow: none;
   color: rgb(var(--glow));
 }
 
@@ -151,12 +174,12 @@ a {
 }
 @keyframes flash-up {
   from {
-    background: rgba(52, 211, 153, 0.18);
+    background: rgba(74, 222, 128, 0.18);
   }
 }
 @keyframes flash-down {
   from {
-    background: rgba(251, 113, 133, 0.18);
+    background: rgba(248, 113, 113, 0.18);
   }
 }
 
@@ -170,5 +193,12 @@ a {
 }
 
 input[type='date']::-webkit-calendar-picker-indicator {
-  filter: invert(0.7);
+  filter: invert(0.8);
+}
+
+/* Pas de halo dans les boutons pleins ni dans les graphiques SVG */
+[class*='bg-emerald-5'],
+[class*='bg-sky-5'],
+svg text[fill='#111a22'] {
+  text-shadow: none;
 }
