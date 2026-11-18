@@ -6,6 +6,7 @@ import type { Totals } from '../lib/portfolio';
 import { fmtMAD, fmtPct, fmtSigned } from '../lib/format';
 
 const RANGES: Range[] = ['1D', '1W', '1M', 'YTD', 'ALL'];
+const ORANGE = '#ff9a3c';
 
 interface Props {
   daily: DailyPoint[];
@@ -49,6 +50,8 @@ export function HeroChart({ daily, intraday, totals }: Props) {
   const gain = totals.pnl >= 0;
   const lineUp = (last?.roi ?? totals.pnlPct) >= 0;
   const stroke = lineUp ? '#4ade80' : '#f87171';
+  // taille des points de séance selon leur densité (ALL peut couvrir des centaines de jours)
+  const dotR = data.length > 150 ? 1.5 : data.length > 60 ? 2.25 : 3;
 
   // dégradé partagé à 0 % : vert au-dessus, rouge en dessous (style « baseline »)
   const { min, max } = data.reduce(
@@ -182,10 +185,12 @@ export function HeroChart({ daily, intraday, totals }: Props) {
                 type="monotone"
                 dataKey="roi"
                 stroke="url(#roiStroke)"
-                strokeWidth={2}
+                strokeWidth={1.5}
                 fill="url(#roiFill)"
                 baseValue={0}
                 isAnimationActive={false}
+                // un point orange par séance : la courbe devient un fil perlé (pas en 1D, points intraday)
+                dot={range === '1D' ? false : { r: dotR, fill: ORANGE, stroke: 'rgba(17,26,34,0.6)', strokeWidth: 0.75 }}
                 activeDot={{ r: 5, fill: stroke, stroke: '#111a22', strokeWidth: 2 }}
               />
             </AreaChart>

@@ -62,6 +62,13 @@ export function recordPrices(quotes: QuoteMap, tickers: string[]): PriceHistory 
     if (!q) continue;
     const prev = (hist[t] ?? []).find((p) => p.date === date);
     const series = (hist[t] ?? []).filter((p) => p.date !== date);
+    // avant la première transaction du jour, le flux renvoie encore la dernière séance (cours et veille) :
+    // ce n'est pas une séance d'aujourd'hui, on n'enregistre rien (et on retire un faux point déjà écrit)
+    const [before, last] = series.slice(-2);
+    if (last && before && q.price === last.price && Math.abs(q.prevClose - before.price) < 0.005) {
+      hist[t] = series;
+      continue;
+    }
     const o = prev?.o ?? q.prevClose;
     series.push({ date, price: q.price, o, h: Math.max(prev?.h ?? o, q.price), l: Math.min(prev?.l ?? o, q.price) });
     hist[t] = series;

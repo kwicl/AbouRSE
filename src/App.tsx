@@ -4,6 +4,8 @@ import { TopBar } from './components/TopBar';
 import { HeroChart } from './components/HeroChart';
 import { Metrics } from './components/Metrics';
 import { PnlBreakdown } from './components/PnlBreakdown';
+import { DailyResults } from './components/DailyResults';
+import { Wallpaper } from './components/Wallpaper';
 import { PositionsTable } from './components/PositionsTable';
 import { PositionModal } from './components/PositionModal';
 import { SellModal } from './components/SellModal';
@@ -309,6 +311,7 @@ export default function App() {
         )}
         <HeroChart daily={daily} intraday={intraday} totals={totals} />
         <PnlBreakdown rows={rows} prices={prices} />
+        <DailyResults rows={rows} prices={prices} />
         <Metrics t={totals} realized={realizedTotal} soldCost={soldCost} />
         <PositionsTable
           rows={rows}
@@ -321,6 +324,7 @@ export default function App() {
         />
         <SalesList sales={sales} onDelete={cancelSale} />
 
+        <Wallpaper />
         <footer className="safe-bottom flex flex-col gap-3 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
           <p className="flex items-start gap-1.5">
             <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
