@@ -1,42 +1,54 @@
 /** @type {import('tailwindcss').Config} */
 
 /*
- * Palette « Nuit » tirée de la photo de fond (public/bg-night.jpg) :
- * brume bleu ardoise, lumières ambrées de la ville, fauteuil en cuir.
- * Thème sombre : la photo reste visible, les textes sont clairs.
+ * Palette « Lime / noir / bleu ».
  * Les noms Tailwind d'origine sont conservés pour ne pas toucher aux composants :
- *   slate   -> bleu brume (950 = nuit, 50 = presque blanc)
- *   emerald -> vert (gain), lumineux pour rester lisible sur fond sombre
- *   rose    -> rouge (perte)
- *   sky     -> ambre des lumières de la ville (actions, synchro)
- *   amber   -> jaune (avertissements)
+ *   slate   -> noir bleuté (950 = noir, 50 = presque blanc)
+ *   emerald -> lime (gain, action principale)
+ *   sky     -> bleu électrique (action secondaire, prix d'achat, synchro)
+ *   rose    -> rouge : réservé aux pertes et aux erreurs
+ *   amber   -> jaune : réservé aux avertissements
  */
-const mist = {
-  50: '#f4f7fa',
-  100: '#e6edf3',
-  200: '#d4dee7',
-  300: '#c3d0db',
-  400: '#b3c2cf',
-  500: '#a2b3c2',
-  600: '#8597a8',
-  700: '#4a5d6e',
-  800: '#2e3d4b',
-  900: '#1c2833',
-  950: '#111a22',
+const ink = {
+  50: '#f5f8ff',
+  100: '#e8eefb',
+  200: '#d5def0',
+  300: '#bcc8df',
+  400: '#a9b7d1',
+  500: '#99a8c4',
+  600: '#8c9cb9',
+  700: '#34466b',
+  800: '#1c2944',
+  900: '#0a101d',
+  950: '#03060c',
 };
 
-const green = {
-  50: '#f0fdf4',
-  100: '#dcfce7',
-  200: '#bbf7d0',
-  300: '#86efac',
-  400: '#4ade80',
-  500: '#22c55e',
-  600: '#16a34a',
-  700: '#15803d',
-  800: '#166534',
-  900: '#14532d',
-  950: '#052e16',
+const lime = {
+  50: '#f8ffe5',
+  100: '#eeffbf',
+  200: '#e0ff8f',
+  300: '#d0fb62',
+  400: '#b8f23a',
+  500: '#a3e635',
+  600: '#7fbd16',
+  700: '#5c8d12',
+  800: '#42660f',
+  900: '#2b430d',
+  950: '#142206',
+};
+
+const blue = {
+  50: '#eff6ff',
+  100: '#dbeafe',
+  200: '#bfdbfe',
+  300: '#93c5fd',
+  400: '#60a5fa',
+  500: '#3b82f6',
+  600: '#2563eb',
+  700: '#1d4ed8',
+  800: '#1e3a9f',
+  900: '#14285f',
+  950: '#0a1533',
 };
 
 const red = {
@@ -51,20 +63,6 @@ const red = {
   800: '#991b1b',
   900: '#7f1d1d',
   950: '#450a0a',
-};
-
-const cityLight = {
-  50: '#fff6ea',
-  100: '#ffe8c9',
-  200: '#ffd6a3',
-  300: '#ffc98a',
-  400: '#f5a85a',
-  500: '#e08a3c',
-  600: '#c06f2a',
-  700: '#94531f',
-  800: '#6b3c17',
-  900: '#4a2a10',
-  950: '#2a170a',
 };
 
 const yellow = {
@@ -85,17 +83,8 @@ export default {
   content: ['./index.html', './src/**/*.{ts,tsx}'],
   theme: {
     extend: {
-      colors: {
-        slate: mist,
-        emerald: green,
-        rose: red,
-        sky: cityLight,
-        amber: yellow,
-      },
-      fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
-        mono: ['"JetBrains Mono"', 'ui-monospace', 'monospace'],
-      },
+      colors: { slate: ink, emerald: lime, sky: blue, rose: red, amber: yellow },
+      fontFamily: { sans: ['"Manrope Variable"', 'Manrope', 'system-ui', 'sans-serif'] },
     },
   },
   plugins: [],

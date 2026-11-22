@@ -12,7 +12,7 @@ export function SalesList({ sales, onDelete }: Props) {
   const sorted = [...sales].sort((a, b) => b.date.localeCompare(a.date));
 
   return (
-    <section className="rounded-2xl border border-slate-800 bg-slate-900/40">
+    <section className="glass">
       <div className="px-4 py-4">
         <h2 className="text-base font-semibold text-slate-100">Ventes réalisées</h2>
         <p className="text-xs text-slate-500">Plus/moins-values encaissées, par opération</p>
@@ -36,7 +36,7 @@ export function SalesList({ sales, onDelete }: Props) {
               </div>
               <div className={`num text-right ${toneClass(gain)}`}>
                 <div className="font-semibold">{fmtSigned(gain)}</div>
-                <div className="text-xs opacity-80">{fmtPct(pct)}</div>
+                <div className="text-xs">{fmtPct(pct)}</div>
               </div>
               <button
                 onClick={() => onDelete(s.id)}

@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import type { Row } from '../lib/portfolio';
 import type { PriceHistory, PricePoint } from '../lib/types';
 import { fmtMAD, fmtPct, fmtSigned, todayISO, toneClass } from '../lib/format';
+import { SlidingGroup } from './ui/SlidingGroup';
 
 /**
  * Résultats par titre : séance du jour, depuis le début du mois (MTD) et depuis le début de l'année (YTD),
@@ -65,7 +66,7 @@ function Cell({ p, strong = false }: { p: Perf | null; strong?: boolean }) {
   return (
     <td className={`whitespace-nowrap px-1.5 py-2.5 text-right sm:px-2 ${toneClass(p.pnl)}`}>
       <div className={strong ? 'font-semibold' : ''}>{fmtSigned(p.pnl)}</div>
-      <div className="text-[11px] opacity-80">{fmtPct(pct(p))}</div>
+      <div className="text-[11px]">{fmtPct(pct(p))}</div>
     </td>
   );
 }
@@ -129,7 +130,7 @@ export function DailyResults({ rows, prices }: { rows: Row[]; prices: PriceHisto
     new Date(d + 'T12:00:00').toLocaleDateString('fr-MA', { weekday: 'short', day: '2-digit', month: 'short' });
 
   return (
-    <section className="rounded-2xl border border-slate-800 bg-slate-900/40">
+    <section className="glass">
       <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-4">
         <div>
           <h2 className="text-base font-semibold text-slate-100">Résultats par titre</h2>
@@ -139,7 +140,7 @@ export function DailyResults({ rows, prices }: { rows: Row[]; prices: PriceHisto
               : 'Résultat de chaque séance, titre par titre • en MAD'}
           </p>
         </div>
-        <div className="flex gap-1 rounded-full border border-slate-700 p-0.5 text-xs">
+        <SlidingGroup className="flex gap-1 rounded-full border border-sky-300/20 bg-slate-950/30 p-0.5 text-xs">
           {(
             [
               ['periodes', 'Jour / Mois / Année'],
@@ -149,19 +150,20 @@ export function DailyResults({ rows, prices }: { rows: Row[]; prices: PriceHisto
             <button
               key={k}
               onClick={() => setView(k)}
-              className={`rounded-full px-3 py-1 font-semibold transition ${view === k ? 'bg-slate-100 text-slate-950' : 'text-slate-400 hover:text-slate-200'}`}
+              data-active={view === k}
+              className={`rounded-full px-3 py-1 font-semibold transition ${view === k ? '' : 'text-slate-400 hover:text-slate-200'}`}
             >
               {label}
             </button>
           ))}
-        </div>
+        </SlidingGroup>
       </div>
 
       {view === 'periodes' ? (
-        <div className="overflow-x-auto border-t border-slate-800 px-2 pb-4 sm:px-4">
-          <table className="num w-full text-xs sm:min-w-[34rem] sm:text-sm">
+        <div key="periodes" className="view-enter overflow-x-auto border-t border-slate-800 px-2 pb-4 sm:px-4">
+          <table className="num w-full text-[11px] min-[360px]:text-xs sm:min-w-[34rem] sm:text-sm">
             <thead>
-              <tr className="text-xs uppercase tracking-wider text-slate-500">
+              <tr className="uppercase tracking-normal text-slate-500 sm:text-xs sm:tracking-wider">
                 <th className="py-3 pr-1 text-left sm:pr-3 font-medium">Titre</th>
                 <th className="hidden px-2 py-3 text-right font-medium sm:table-cell">Cours</th>
                 <th className="px-2 py-3 text-right font-medium">
@@ -205,18 +207,19 @@ export function DailyResults({ rows, prices }: { rows: Row[]; prices: PriceHisto
           </table>
         </div>
       ) : (
-        <div className="border-t border-slate-800 px-4 pb-4">
-          <div className="flex justify-end gap-1 pt-3">
+        <div key="seances" className="view-enter border-t border-slate-800 px-4 pb-4">
+          <SlidingGroup className="flex justify-end gap-1 pt-3">
             {SESSIONS.map((n) => (
               <button
                 key={n}
                 onClick={() => setCount(n)}
-                className={`rounded-md px-2 py-1 text-xs transition ${count === n ? 'bg-slate-700 text-slate-100' : 'text-slate-500 hover:text-slate-200'}`}
+                data-active={count === n}
+                className={`rounded-full px-2.5 py-1 text-xs transition ${count === n ? '' : 'text-slate-500 hover:text-slate-200'}`}
               >
                 {n} séances
               </button>
             ))}
-          </div>
+          </SlidingGroup>
           {grid.length === 0 ? (
             <div className="mt-3 flex h-24 items-center justify-center rounded-xl border border-dashed border-slate-800 text-sm text-slate-500">
               Historique en cours de chargement…

@@ -4,20 +4,27 @@
 
 :root {
   color-scheme: dark;
+  --ink: 3, 6, 12;
+  --lime: 184, 242, 58;
+  --blue: 59, 130, 246;
+  --rim: rgba(147, 197, 253, 0.2);
+  --edge: rgba(219, 234, 254, 0.22);
+  --ease-out: cubic-bezier(0.24, 0.89, 0.26, 1);
 }
 
 html {
+  /* les calques animés du fond débordent : sans ça, Safari iOS peut laisser glisser la page de côté */
+  overflow-x: hidden;
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
   -webkit-tap-highlight-color: transparent;
 }
 
 body {
-  background: #16212b;
-  color: #e6edf3;
-  /* halo sombre : garde les textes lisibles sur la brume claire de la photo */
-  text-shadow: 0 0 4px rgba(8, 14, 20, 0.6);
-  font-family: Inter, system-ui, sans-serif;
+  background: rgb(var(--ink));
+  color: #e8eefb;
+  font-family: 'Manrope Variable', Manrope, system-ui, sans-serif;
+  font-weight: 500;
   -webkit-font-smoothing: antialiased;
   overscroll-behavior-y: none;
   /* encoches et coins arrondis (iPhone, Android plein écran) */
@@ -32,31 +39,14 @@ a {
   user-select: none;
 }
 
-/* ── Fond « Nuit » ────────────────────────────────────────────────────────
- * Photo en calque fixe (iOS ignore background-attachment: fixed), affichée
- * pleinement. La photo est sombre : textes clairs, aucun voile. */
-body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  background: url('/bg-night.jpg') center 55% / cover no-repeat;
-}
-
-/* Panneaux en verre quasi transparent (graphiques compris) : seul un léger
- * flou et un liseré clair détachent le contenu de la photo. */
-[class*='bg-slate-900/'],
-[class*='bg-slate-950/'] {
-  background-color: rgba(12, 20, 28, 0.2);
-  border-color: rgba(214, 226, 236, 0.16);
-  -webkit-backdrop-filter: blur(3px);
-  backdrop-filter: blur(3px);
+:where(button, a):focus-visible {
+  outline: 2px solid rgb(var(--lime));
+  outline-offset: 3px;
 }
 
 ::selection {
-  background: rgba(245, 168, 90, 0.35);
-  color: #e6edf3;
+  background: rgba(var(--lime), 0.9);
+  color: rgb(var(--ink));
 }
 
 .safe-top {
@@ -76,94 +66,281 @@ body::before {
 }
 
 .num {
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
   font-variant-numeric: tabular-nums;
+  letter-spacing: -0.012em;
 }
 
-/* ── Conteneur néon ─────────────────────────────────────────────────────── */
-.neon {
-  --glow: 74, 222, 128; /* vert gain */
-  --glow-2: 34, 197, 94;
-  position: relative;
-  border-radius: 1.25rem;
-  background: rgba(12, 20, 28, 0.18);
-  -webkit-backdrop-filter: blur(3px);
-  backdrop-filter: blur(3px);
-  border: 1px solid rgba(var(--glow), 0.55);
+/* ── Fond animé, sans image ─────────────────────────────────────────────────
+ * Deux halos bleu et lime qui dérivent, sous une trame de graphique.
+ * Uniquement des transform : le GPU déplace les calques sans les redessiner. */
+body::before,
+body::after {
+  content: '';
+  position: fixed;
+  z-index: -1;
+  pointer-events: none;
+}
+body::before {
+  /* rendu au tiers puis agrandi : des halos flous n’ont pas besoin de pixels */
+  inset: 25%;
+  will-change: transform;
+  transform: scale(3);
+  background:
+    radial-gradient(38% 34% at 28% 30%, rgba(var(--blue), 0.36), transparent 100%),
+    radial-gradient(26% 28% at 74% 66%, rgba(var(--lime), 0.17), transparent 100%),
+    radial-gradient(30% 24% at 76% 22%, rgba(29, 78, 216, 0.24), transparent 100%);
+  animation: aurora 26s ease-in-out infinite alternate;
+}
+body::after {
+  inset: -56px 0 0;
+  background-image:
+    linear-gradient(rgba(147, 197, 253, 0.065) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(147, 197, 253, 0.065) 1px, transparent 1px);
+  background-size: 56px 56px;
+  animation: grid-drift 14s linear infinite;
+}
+@keyframes aurora {
+  from {
+    transform: translate3d(-15%, -12%, 0) rotate(-5deg) scale(3);
+  }
+  to {
+    transform: translate3d(18%, 15%, 0) rotate(8deg) scale(3.36);
+  }
+}
+@keyframes grid-drift {
+  to {
+    transform: translate3d(0, 56px, 0);
+  }
+}
+
+/* ── Verre ──────────────────────────────────────────────────────────────────
+ * Le fond n'a aucun détail à flouter : seule la barre du haut, sous laquelle
+ * le contenu défile, utilise backdrop-filter. */
+.glass {
+  border: 1px solid var(--rim);
+  border-radius: 1.5rem;
+  background: linear-gradient(144deg, rgba(147, 197, 253, 0.07), transparent 62%), rgba(var(--ink), 0.34);
   box-shadow:
-    0 0 0 1px rgba(214, 226, 236, 0.1) inset,
-    0 8px 30px rgba(var(--glow), 0.18);
-  animation: neon-pulse 4s ease-in-out infinite;
+    inset 0 1px 1px var(--edge),
+    inset 0 -1px 1px rgba(0, 0, 0, 0.35),
+    0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+.glass-bar {
+  border: 1px solid var(--rim);
+  background: linear-gradient(165deg, rgba(147, 197, 253, 0.1), transparent 40%), rgba(var(--ink), 0.72);
+  box-shadow:
+    inset 1px 1px 1px var(--edge),
+    0 8px 24px rgba(0, 0, 0, 0.3);
+  -webkit-backdrop-filter: blur(15px) saturate(1.35);
+  backdrop-filter: blur(15px) saturate(1.35);
+}
+
+@media (min-width: 1024px) {
+  .stage {
+    width: calc(100% - 2rem);
+    margin-bottom: 1.5rem;
+    padding: 1.5rem 1.5rem 0.5rem;
+    border: 1px solid var(--rim);
+    border-radius: 2.25rem;
+    background: linear-gradient(148deg, rgba(147, 197, 253, 0.06), transparent 22% 78%, rgba(var(--lime), 0.035));
+    box-shadow: inset 1px 1px 1px rgba(219, 234, 254, 0.14);
+  }
+}
+
+.metric-lead {
+  border-color: rgba(147, 197, 253, 0.5);
+  background: radial-gradient(ellipse at 5% -20%, #1d4ed8, transparent 70%), linear-gradient(145deg, #1e44ad, #0a1a4a);
+}
+.metric-lead .metric-label {
+  color: #dbeafe;
+}
+.metric-lead .metric-icon {
+  background: rgb(var(--lime));
+  color: rgb(var(--ink));
+}
+
+.orb {
+  border-radius: 50%;
+  background:
+    radial-gradient(ellipse at 32% 24%, #f8ffe5 4%, rgb(var(--lime)) 28%, transparent 62%),
+    radial-gradient(ellipse at 67% 60%, #60a5fa, #1d4ed8 60%, #0a1533 85%);
+  box-shadow:
+    inset 0 0 0 0.75px rgba(245, 248, 255, 0.55),
+    0 0 0 3px rgba(var(--blue), 0.15);
+  color: rgb(var(--ink));
+}
+
+/* ── Conteneur principal (gain : lime et bleu, perte : rouge et bleu) ───── */
+.neon {
+  --glow: var(--lime);
+  --glow-2: var(--blue);
+  position: relative;
+  border-radius: 1.75rem;
+  background:
+    radial-gradient(90% 70% at 0% 0%, rgba(var(--glow), 0.09), transparent 65%),
+    radial-gradient(80% 70% at 100% 100%, rgba(var(--glow-2), 0.13), transparent 65%),
+    rgba(var(--ink), 0.32);
+  box-shadow:
+    inset 0 1px 1px var(--edge),
+    0 12px 40px rgba(var(--glow), 0.1);
   isolation: isolate;
 }
+.neon.loss {
+  --glow: 248, 113, 113;
+}
 
-.neon::before {
-  /* liseré animé en dégradé conique */
-  content: '';
+/* Liseré tournant : le masque reste fixe et un petit dégradé agrandi tourne dessous.
+ * Uniquement un transform, donc aucun redessin (animer l'angle du dégradé divisait les images/s par 3). */
+.neon-rim {
   position: absolute;
-  inset: -1px;
+  inset: 0;
+  overflow: hidden;
   border-radius: inherit;
-  padding: 1px;
-  background: conic-gradient(
-    from var(--angle, 0deg),
-    rgba(var(--glow), 0.9),
-    rgba(var(--glow-2), 0.2),
-    rgba(var(--glow), 0.9),
-    rgba(var(--glow-2), 0.2),
-    rgba(var(--glow), 0.9)
-  );
+  padding: 1.5px;
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
-  animation: neon-spin 8s linear infinite;
   pointer-events: none;
   z-index: -1;
 }
-
-.neon.loss {
-  --glow: 248, 113, 113; /* rouge perte */
-  --glow-2: 239, 68, 68;
+.neon-rim > i {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 200px;
+  height: 200px;
+  margin: -100px 0 0 -100px;
+  background: conic-gradient(
+    rgba(var(--glow), 0.95),
+    rgba(var(--glow-2), 0.35),
+    rgba(var(--glow-2), 0.95),
+    rgba(var(--glow), 0.2),
+    rgba(var(--glow), 0.95)
+  );
+  transform: scale(9);
+  will-change: transform;
+  animation: neon-spin 8s linear infinite;
 }
-
-@property --angle {
-  syntax: '<angle>';
-  initial-value: 0deg;
-  inherits: false;
-}
-
 @keyframes neon-spin {
+  from {
+    transform: rotate(0deg) scale(9);
+  }
   to {
-    --angle: 360deg;
-  }
-}
-
-@keyframes neon-pulse {
-  0%,
-  100% {
-    box-shadow:
-      0 0 0 1px rgba(214, 226, 236, 0.1) inset,
-      0 8px 30px rgba(var(--glow), 0.18);
-  }
-  50% {
-    box-shadow:
-      0 0 0 1px rgba(214, 226, 236, 0.16) inset,
-      0 10px 40px rgba(var(--glow), 0.28);
+    transform: rotate(360deg) scale(9);
   }
 }
 
 .neon-text {
-  text-shadow: 0 0 14px rgba(var(--glow), 0.35), 0 1px 2px rgba(8, 14, 20, 0.6);
-}
-
-.chart-glow .recharts-area-curve {
-  filter: drop-shadow(0 1px 2px rgba(var(--glow), 0.35));
+  color: rgb(var(--glow));
+  text-shadow: 0 0 22px rgba(var(--glow), 0.28);
 }
 
 .badge-glow {
   background: rgba(var(--glow), 0.12);
   border: 1px solid rgba(var(--glow), 0.5);
-  box-shadow: none;
   color: rgb(var(--glow));
+}
+
+/* ── Sélecteurs à pilule glissante ──────────────────────────────────────── */
+.seg {
+  position: relative;
+}
+.seg > button {
+  position: relative;
+  z-index: 1;
+}
+.seg > button[data-active='true'] {
+  border-color: transparent;
+  color: rgb(var(--ink));
+}
+.seg-pill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  border-radius: 999px;
+  background: rgb(var(--lime));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  pointer-events: none;
+  visibility: hidden;
+}
+.seg-pill[data-ready] {
+  visibility: visible;
+  transition:
+    transform 0.36s var(--ease-out),
+    width 0.36s var(--ease-out),
+    height 0.36s var(--ease-out);
+}
+
+/* ── Animations ─────────────────────────────────────────────────────────── */
+/* sur le <svg> entier : Safari anime mal un clip-path posé sur un <g> */
+.hero-chart .recharts-surface {
+  animation: draw 0.9s var(--ease-out) backwards;
+}
+.spark.in-view {
+  animation: draw 1.2s var(--ease-out) backwards;
+}
+@keyframes draw {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+/* en pause sur la première image jusqu'à ce que le graphique soit vu ; visibles d'office si animations réduites */
+.candle {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: candle-grow 0.46s var(--ease-out) backwards paused;
+}
+.in-view .candle {
+  animation-play-state: running;
+}
+@keyframes candle-grow {
+  from {
+    /* pas 0 : Safari n’interpole pas une matrice non inversible */
+    transform: scaleY(0.01);
+  }
+}
+
+.view-enter {
+  animation: view-enter 0.32s var(--ease-out);
+}
+@keyframes view-enter {
+  from {
+    opacity: 0.3;
+    filter: blur(6px);
+  }
+}
+
+.modal-veil {
+  animation: fade-in 0.2s ease-out;
+}
+.modal-sheet {
+  border-color: var(--rim);
+  animation: sheet-in 0.38s var(--ease-out);
+}
+.pop-in {
+  animation: pop-in 0.22s var(--ease-out);
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes sheet-in {
+  from {
+    opacity: 0;
+    transform: translateY(28px) scale(0.98);
+  }
+}
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
 }
 
 .flash-up {
@@ -174,21 +351,12 @@ body::before {
 }
 @keyframes flash-up {
   from {
-    background: rgba(74, 222, 128, 0.18);
+    background-color: rgba(var(--lime), 0.2);
   }
 }
 @keyframes flash-down {
   from {
-    background: rgba(248, 113, 113, 0.18);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .neon,
-  .neon::before,
-  .flash-up,
-  .flash-down {
-    animation: none;
+    background-color: rgba(248, 113, 113, 0.2);
   }
 }
 
@@ -196,9 +364,37 @@ input[type='date']::-webkit-calendar-picker-indicator {
   filter: invert(0.8);
 }
 
-/* Pas de halo dans les boutons pleins ni dans les graphiques SVG */
-[class*='bg-emerald-5'],
-[class*='bg-sky-5'],
-svg text[fill='#111a22'] {
-  text-shadow: none;
+/* ── Préférences d'accessibilité ────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  .glass,
+  .glass-bar,
+  .neon {
+    background: #0a101d;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+
+/* Téléphones et tablettes : un flou au-dessus d'un fond animé est recalculé à chaque image.
+ * Un voile presque opaque donne le même rendu et garde les animations fluides. */
+@media (hover: none) and (pointer: coarse) {
+  .glass-bar {
+    background: linear-gradient(165deg, rgba(147, 197, 253, 0.1), transparent 40%), rgba(var(--ink), 0.94);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+  .modal-veil {
+    background-color: rgba(var(--ink), 0.82);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
 }

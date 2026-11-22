@@ -1,5 +1,6 @@
 import { useId } from 'react';
 import type { PricePoint } from '../lib/types';
+import { useSeen } from '../lib/motion';
 
 interface Props {
   points: PricePoint[];
@@ -9,9 +10,14 @@ interface Props {
 }
 
 /** Mini-graphe d'évolution du cours, conçu pour être posé en arrière-plan d'une ligne. */
-export function Sparkline({ points, baseline, className = '' }: Props) {
+export function Sparkline(props: Props) {
+  // composant séparé : le tracé doit exister dans le DOM pour être observé
+  return props.points.length < 2 ? null : <SparkPath {...props} />;
+}
+
+function SparkPath({ points, baseline, className = '' }: Props) {
   const id = useId();
-  if (points.length < 2) return null;
+  const [svg, seen] = useSeen<SVGSVGElement>();
 
   const prices = points.map((p) => p.price);
   const lo = Math.min(...prices, baseline ?? Infinity);
@@ -26,10 +32,10 @@ export function Sparkline({ points, baseline, className = '' }: Props) {
   const line = points.map((p, i) => `${i ? 'L' : 'M'}${x(i).toFixed(2)},${y(p.price).toFixed(2)}`).join('');
   const area = `${line}L${W},${H}L0,${H}Z`;
   const up = prices[prices.length - 1] >= (baseline ?? prices[0]);
-  const color = up ? '#4ade80' : '#f87171';
+  const color = up ? '#b8f23a' : '#f87171';
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className={`pointer-events-none ${className}`} aria-hidden>
+    <svg ref={svg} viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className={`spark ${seen ? 'in-view' : ''} pointer-events-none ${className}`} aria-hidden>
       <defs>
         <linearGradient id={id} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0" stopColor={color} stopOpacity="0.28" />
@@ -38,7 +44,7 @@ export function Sparkline({ points, baseline, className = '' }: Props) {
       </defs>
       <path d={area} fill={`url(#${id})`} />
       {baseline != null && (
-        <line x1="0" x2={W} y1={y(baseline)} y2={y(baseline)} stroke="#8597a8" strokeOpacity="0.35" strokeDasharray="3 3" vectorEffect="non-scaling-stroke" />
+        <line x1="0" x2={W} y1={y(baseline)} y2={y(baseline)} stroke="#60a5fa" strokeOpacity="0.35" strokeDasharray="3 3" vectorEffect="non-scaling-stroke" />
       )}
       <path d={line} fill="none" stroke={color} strokeOpacity="0.75" strokeWidth="1.5" vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
     </svg>

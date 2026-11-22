@@ -1,11 +1,13 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { Row } from '../lib/portfolio';
 import type { PriceHistory, PricePoint } from '../lib/types';
 import { fmtMAD, fmtPct, fmtSigned, toneClass } from '../lib/format';
+import { SlidingGroup } from './ui/SlidingGroup';
+import { useSeen } from '../lib/motion';
 
-const GREEN = '#4ade80';
+const LIME = '#b8f23a';
 const RED = '#f87171';
-const AMBER = '#f5a85a';
+const BLUE = '#60a5fa';
 
 type RangeKey = '1M' | '3M' | '6M' | '1A' | 'ACHAT';
 const RANGES: { key: RangeKey; label: string }[] = [
@@ -65,10 +67,11 @@ const fmtDate = (iso: string, long: boolean) => {
 
 function CandleChart({ candles, buyPrice, lastPrice }: { candles: Candle[]; buyPrice: number; lastPrice: number }) {
   const wrap = useRef<HTMLDivElement>(null);
+  const [svg, seen] = useSeen<SVGSVGElement>(0.45);
   const [w, setW] = useState(600);
   const [hover, setHover] = useState<number | null>(null);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const el = wrap.current;
     if (!el) return;
     const ro = new ResizeObserver(() => setW(el.clientWidth || 600));
@@ -110,7 +113,7 @@ function CandleChart({ candles, buyPrice, lastPrice }: { candles: Candle[]; buyP
   const up = lastPrice >= buyPrice;
 
   return (
-    <div ref={wrap} className="w-full">
+    <div ref={wrap} className="w-full overflow-hidden">
       <div className="num mb-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 px-1 text-xs text-slate-400">
         <span className="text-slate-500">{shown ? fmtDate(shown.date, false) + '/' + shown.date.slice(0, 4) : ''}</span>
         {shown && (
@@ -123,42 +126,45 @@ function CandleChart({ candles, buyPrice, lastPrice }: { candles: Candle[]; buyP
           </>
         )}
       </div>
-      <svg width={w} height={H} onPointerMove={onMove} onPointerLeave={() => setHover(null)} className="touch-pan-y select-none">
+      <svg ref={svg} width={w} height={H} onPointerMove={onMove} onPointerLeave={() => setHover(null)} className={`touch-pan-y select-none ${seen ? 'in-view' : ''}`}>
         {ticks.map((t) => (
           <g key={t}>
-            <line x1={M.l} x2={M.l + iw} y1={y(t)} y2={y(t)} stroke="rgba(226,236,245,0.12)" strokeWidth={1} />
-            <text x={M.l + iw + 6} y={y(t) + 4} fontSize={10.5} fill="#b3c2cf" className="num">{fmtMAD(t)}</text>
+            <line x1={M.l} x2={M.l + iw} y1={y(t)} y2={y(t)} stroke="rgba(147,197,253,0.12)" strokeWidth={1} />
+            <text x={M.l + iw + 6} y={y(t) + 4} fontSize={10.5} fill="#a9b7d1" className="num">{fmtMAD(t)}</text>
           </g>
         ))}
         {labelIdx.map((i, k) => (
-          <text key={k} x={x(i)} y={H - 6} fontSize={10.5} fill="#b3c2cf" textAnchor={k === 0 ? 'start' : k === labelIdx.length - 1 ? 'end' : 'middle'}>
+          <text key={k} x={x(i)} y={H - 6} fontSize={10.5} fill="#a9b7d1" textAnchor={k === 0 ? 'start' : k === labelIdx.length - 1 ? 'end' : 'middle'}>
             {fmtDate(cs[i].date, long)}
           </text>
         ))}
 
         {/* prix d'achat */}
-        <line x1={M.l} x2={M.l + iw} y1={y(buyPrice)} y2={y(buyPrice)} stroke={AMBER} strokeDasharray="5 4" strokeWidth={1.2} />
-        <rect x={M.l + iw + 1} y={y(buyPrice) - 8} width={M.r - 2} height={16} rx={3} fill={AMBER} />
-        <text x={M.l + iw + 5} y={y(buyPrice) + 4} fontSize={10.5} fill="#111a22" fontWeight={700} className="num">{fmtMAD(buyPrice)}</text>
+        <line x1={M.l} x2={M.l + iw} y1={y(buyPrice)} y2={y(buyPrice)} stroke={BLUE} strokeDasharray="5 4" strokeWidth={1.2} />
+        <rect x={M.l + iw + 1} y={y(buyPrice) - 8} width={M.r - 2} height={16} rx={8} fill={BLUE} />
+        <text x={M.l + iw + 5} y={y(buyPrice) + 4} fontSize={10.5} fill="#03060c" fontWeight={700} className="num">{fmtMAD(buyPrice)}</text>
 
         {cs.map((c, i) => {
-          const col = c.c >= c.o ? GREEN : RED;
+          const col = c.c >= c.o ? LIME : RED;
           const top = y(Math.max(c.o, c.c));
           const bot = y(Math.min(c.o, c.c));
           return (
             <g key={c.date + i} opacity={hover === null || hover === i ? 1 : 0.55}>
-              <line x1={x(i)} x2={x(i)} y1={y(c.h)} y2={y(c.l)} stroke={col} strokeWidth={1.2} />
-              <rect x={x(i) - bw / 2} y={top} width={bw} height={Math.max(1, bot - top)} fill={col} />
+              {/* groupe interne : le transform animé ne touche pas l'opacité de survol */}
+              <g className="candle" style={{ animationDelay: `${(i / cs.length) * 450}ms` }}>
+                <line x1={x(i)} x2={x(i)} y1={y(c.h)} y2={y(c.l)} stroke={col} strokeWidth={1.2} />
+                <rect x={x(i) - bw / 2} y={top} width={bw} height={Math.max(1, bot - top)} fill={col} />
+              </g>
             </g>
           );
         })}
 
         {/* dernier cours */}
-        <line x1={M.l} x2={M.l + iw} y1={y(lastPrice)} y2={y(lastPrice)} stroke={up ? GREEN : RED} strokeWidth={1} strokeOpacity={0.6} />
-        <rect x={M.l + iw + 1} y={y(lastPrice) - 8} width={M.r - 2} height={16} rx={3} fill={up ? GREEN : RED} />
-        <text x={M.l + iw + 5} y={y(lastPrice) + 4} fontSize={10.5} fill="#111a22" fontWeight={700} className="num">{fmtMAD(lastPrice)}</text>
+        <line x1={M.l} x2={M.l + iw} y1={y(lastPrice)} y2={y(lastPrice)} stroke={up ? LIME : RED} strokeWidth={1} strokeOpacity={0.6} />
+        <rect x={M.l + iw + 1} y={y(lastPrice) - 8} width={M.r - 2} height={16} rx={8} fill={up ? LIME : RED} />
+        <text x={M.l + iw + 5} y={y(lastPrice) + 4} fontSize={10.5} fill="#03060c" fontWeight={700} className="num">{fmtMAD(lastPrice)}</text>
 
-        {hover !== null && <line x1={x(hover)} x2={x(hover)} y1={M.t} y2={M.t + ih} stroke="#8597a8" strokeDasharray="3 3" strokeOpacity={0.6} />}
+        {hover !== null && <line x1={x(hover)} x2={x(hover)} y1={M.t} y2={M.t + ih} stroke="#60a5fa" strokeDasharray="3 3" strokeOpacity={0.6} />}
       </svg>
     </div>
   );
@@ -177,11 +183,11 @@ export function PnlBreakdown({ rows, prices }: { rows: Row[]; prices: PriceHisto
   const candles = toCandles(series.filter((p) => p.date >= from));
 
   return (
-    <section className="rounded-2xl border border-slate-800 bg-slate-900/40">
+    <section className="glass">
       <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-4">
         <div>
           <h2 className="text-base font-semibold text-slate-100">Plus/moins-value par titre</h2>
-          <p className="text-xs text-slate-500">Cours actuel vs prix d'achat (PRU) • en MAD • ligne ambre = prix d'achat</p>
+          <p className="text-xs text-slate-500">Cours actuel vs prix d'achat (PRU) • en MAD • ligne bleue = prix d'achat</p>
         </div>
         <div className={`num text-right text-sm font-semibold ${toneClass(total)}`}>
           {fmtSigned(total)} MAD
@@ -191,30 +197,32 @@ export function PnlBreakdown({ rows, prices }: { rows: Row[]; prices: PriceHisto
 
       <div className="border-t border-slate-800 p-4">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <div className="flex flex-wrap gap-1.5">
+          <SlidingGroup className="flex flex-wrap gap-1.5">
             {sorted.map((r) => (
               <button
                 key={r.id}
                 onClick={() => setSel(r.ticker)}
+                data-active={r.id === row.id}
                 className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
-                  r.ticker === row.ticker ? 'border-emerald-500/60 bg-emerald-500/15 text-emerald-300' : 'border-slate-700 text-slate-400 hover:text-slate-200'
+                  r.id === row.id ? '' : 'border-slate-700 text-slate-400 hover:text-slate-200'
                 }`}
               >
                 {r.ticker}
               </button>
             ))}
-          </div>
-          <div className="flex gap-1">
+          </SlidingGroup>
+          <SlidingGroup className="flex flex-wrap gap-1">
             {RANGES.map((r) => (
               <button
                 key={r.key}
                 onClick={() => setRange(r.key)}
-                className={`rounded-md px-2 py-1 text-xs transition ${range === r.key ? 'bg-slate-700 text-slate-100' : 'text-slate-500 hover:text-slate-200'}`}
+                data-active={range === r.key}
+                className={`rounded-full px-2.5 py-1 text-xs transition ${range === r.key ? '' : 'text-slate-500 hover:text-slate-200'}`}
               >
                 {r.label}
               </button>
             ))}
-          </div>
+          </SlidingGroup>
         </div>
 
         <div className="num mb-2 flex flex-wrap items-baseline gap-x-3 px-1">
@@ -227,7 +235,7 @@ export function PnlBreakdown({ rows, prices }: { rows: Row[]; prices: PriceHisto
         </div>
 
         {candles.length >= 2 ? (
-          <CandleChart candles={candles} buyPrice={row.buyPrice} lastPrice={row.price} />
+          <CandleChart key={`${row.ticker}-${range}`} candles={candles} buyPrice={row.buyPrice} lastPrice={row.price} />
         ) : (
           <div className="flex h-40 items-center justify-center rounded-xl border border-dashed border-slate-800 text-sm text-slate-500">
             Historique en cours de chargement…
@@ -254,7 +262,7 @@ export function PnlBreakdown({ rows, prices }: { rows: Row[]; prices: PriceHisto
               <tr
                 key={r.id}
                 onClick={() => setSel(r.ticker)}
-                className={`cursor-pointer border-t border-slate-800/70 transition hover:bg-slate-900/60 ${r.ticker === row.ticker ? 'bg-slate-900/70' : ''}`}
+                className={`cursor-pointer border-t border-slate-800/70 transition hover:bg-sky-500/10 ${r.ticker === row.ticker ? 'bg-sky-500/15' : ''}`}
               >
                 <td className="py-2.5 pr-3 font-semibold text-slate-100">{r.ticker}</td>
                 <td className="px-2 py-2.5 text-right text-slate-300">{r.qty.toLocaleString('fr-MA')}</td>

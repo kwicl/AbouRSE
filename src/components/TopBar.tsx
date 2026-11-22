@@ -4,6 +4,7 @@ import type { SyncStatus } from './SyncPanel';
 import { FEED_SECTOR, TICKER_RE, listings, type Instrument } from '../lib/universe';
 import type { FeedMode, QuoteMap } from '../lib/types';
 import { fmtMAD, fmtPct, toneClass } from '../lib/format';
+import { spinIcon } from '../lib/motion';
 
 interface Props {
   quotes: QuoteMap;
@@ -68,21 +69,24 @@ export function TopBar({ quotes, mode, open, updatedAt, error, onRefresh, onPick
       : updatedAt.toLocaleString('fr-MA', { weekday: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' });
 
   return (
-    <header className="safe-top sticky top-0 z-30 border-b border-slate-800/80 bg-slate-950/85 backdrop-blur-xl">
-      <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-3 px-4 py-3 sm:flex-nowrap sm:gap-5">
+    <header className="safe-top sticky top-0 z-30">
+      <div className="mx-auto max-w-7xl px-2 py-2 sm:px-4">
+      <div className="glass-bar flex flex-wrap items-center gap-x-3 gap-y-2 rounded-3xl px-3 py-2 md:flex-nowrap md:gap-x-4 md:rounded-full">
         <a href="/" className="flex shrink-0 items-center gap-2.5">
           <img
             src="/avatar.png"
             alt="AbouRSE"
-            className="h-9 w-9 rounded-full object-cover ring-2 ring-emerald-400/60 shadow-[0_0_14px_rgba(22,163,74,0.35)]"
+            className="h-9 w-9 rounded-full object-cover ring-2 ring-emerald-400/70 shadow-[0_0_16px_rgba(59,130,246,0.5)]"
           />
           <span className="text-lg font-extrabold tracking-tight">
             Abou<span className="text-emerald-400">RSE</span>
           </span>
         </a>
 
-        <div ref={box} className="relative order-3 w-full sm:order-none sm:max-w-md sm:flex-1">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+        <div ref={box} className="relative order-3 w-full md:order-none md:max-w-md md:flex-1">
+          <span className="orb pointer-events-none absolute left-2 top-1/2 z-10 grid h-6 w-6 -translate-y-1/2 place-items-center" aria-hidden="true">
+            <Search className="h-3 w-3" strokeWidth={3} />
+          </span>
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
@@ -102,10 +106,10 @@ export function TopBar({ quotes, mode, open, updatedAt, error, onRefresh, onPick
             autoCapitalize="characters"
             autoCorrect="off"
             spellCheck={false}
-            className="w-full rounded-full border border-slate-800 bg-slate-900/80 py-2 pl-9 pr-4 text-sm text-slate-200 placeholder:text-slate-500 outline-none transition focus:border-emerald-500/60 focus:ring-2 focus:ring-emerald-500/20"
+            className="w-full rounded-full border border-sky-300/20 bg-sky-950/40 py-2 pl-10 pr-4 text-sm text-slate-200 placeholder:text-slate-500 outline-none transition focus:border-emerald-500/60 focus:ring-2 focus:ring-emerald-500/20"
           />
           {focus && results.length > 0 && (
-            <ul className="absolute left-0 right-0 top-full mt-2 overflow-hidden max-h-[70vh] overflow-y-auto rounded-xl border border-slate-700 bg-slate-900 shadow-2xl">
+            <ul className="pop-in absolute left-0 right-0 top-full mt-2 overflow-hidden max-h-[70vh] overflow-y-auto rounded-2xl border border-slate-700 bg-slate-900 shadow-2xl">
               {results.map((i, idx) => {
                 const quote = quotes[i.ticker];
                 const ch = quote ? ((quote.price - quote.prevClose) / quote.prevClose) * 100 : 0;
@@ -114,7 +118,7 @@ export function TopBar({ quotes, mode, open, updatedAt, error, onRefresh, onPick
                     <button
                       onMouseEnter={() => setActive(idx)}
                       onClick={() => pick(i.ticker)}
-                      className={`flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm ${idx === active ? 'bg-slate-800/80' : ''}`}
+                      className={`flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm ${idx === active ? 'bg-sky-500/15' : ''}`}
                     >
                       <span className="w-12 font-semibold text-slate-100">{i.ticker}</span>
                       <span className={`min-w-0 flex-1 truncate ${i.manual ? 'italic text-sky-300' : 'text-slate-400'}`}>{i.name}</span>
@@ -136,7 +140,7 @@ export function TopBar({ quotes, mode, open, updatedAt, error, onRefresh, onPick
         </div>
 
         <div className="ml-auto flex items-center gap-2 text-xs sm:gap-3">
-          <span className="rounded-md border border-slate-700 bg-slate-900 px-2 py-1 font-semibold text-slate-300">MAD</span>
+          <span className="rounded-full border border-sky-300/25 bg-sky-500/10 px-2.5 py-1 font-semibold text-slate-300">MAD</span>
           <span
             title={
               mode === 'live'
@@ -145,19 +149,19 @@ export function TopBar({ quotes, mode, open, updatedAt, error, onRefresh, onPick
                   ? 'Chargement des cours…'
                   : `Flux injoignable (${error ?? '—'}) : derniers cours connus affichés`
             }
-            className={`flex items-center gap-1.5 rounded-md px-2 py-1 font-semibold ${
+            className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 font-semibold ${
               mode === 'live' ? 'bg-emerald-500/10 text-emerald-400' : mode === 'loading' ? 'bg-slate-800 text-slate-400' : 'bg-amber-500/10 text-amber-400'
             }`}
           >
             <span className={`h-1.5 w-1.5 rounded-full ${mode === 'live' ? 'bg-emerald-400 animate-pulse' : mode === 'loading' ? 'bg-slate-500' : 'bg-amber-400'}`} />
             {mode === 'live' ? 'LIVE' : mode === 'loading' ? '…' : 'HORS LIGNE'}
           </span>
-          <span className={`hidden rounded-md px-2 py-1 md:inline ${open ? 'text-emerald-300' : 'text-slate-500'}`}>
+          <span className={`hidden whitespace-nowrap rounded-full px-2 py-1 lg:inline ${open ? 'text-emerald-300' : 'text-slate-500'}`}>
             {open ? 'Séance ouverte' : 'Marché fermé'}
           </span>
           <span className="flex items-center gap-1 text-slate-400">
             <Clock className="h-3.5 w-3.5" />
-            <span className="num">{time}</span>
+            <span className="num whitespace-nowrap">{time}</span>
           </span>
           <button
             onClick={onSync}
@@ -169,13 +173,17 @@ export function TopBar({ quotes, mode, open, updatedAt, error, onRefresh, onPick
             {sync === 'syncing' && <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 animate-ping rounded-full bg-sky-400" />}
           </button>
           <button
-            onClick={onRefresh}
+            onClick={(e) => {
+              spinIcon(e.currentTarget);
+              onRefresh();
+            }}
             aria-label="Actualiser les cours"
             className="rounded-full p-2 text-slate-400 transition hover:bg-slate-800 hover:text-slate-100"
           >
             <RefreshCw className="h-4 w-4" />
           </button>
         </div>
+      </div>
       </div>
     </header>
   );

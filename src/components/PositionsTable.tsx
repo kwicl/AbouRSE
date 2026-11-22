@@ -25,7 +25,7 @@ interface Actions {
 
 const GRID = 'lg:grid lg:grid-cols-[minmax(10rem,1.5fr)_repeat(8,minmax(0,1fr))_6.5rem] lg:items-center';
 
-/** Flash vert/rouge quand le cours change */
+/** Flash lime/rouge quand le cours change */
 function useFlash(price: number) {
   const prev = useRef(price);
   const [cls, setCls] = useState('');
@@ -44,7 +44,7 @@ function Variation({ v }: { v: number }) {
   const Icon = v >= 0 ? ArrowUpRight : ArrowDownRight;
   return (
     <span
-      className={`num inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-xs font-semibold ${
+      className={`num inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-xs font-semibold ${
         v > 0 ? 'bg-emerald-500/10 text-emerald-400' : v < 0 ? 'bg-rose-500/10 text-rose-400' : 'bg-slate-800 text-slate-400'
       }`}
     >
@@ -55,7 +55,7 @@ function Variation({ v }: { v: number }) {
 }
 
 function ActionButtons({ r, onEdit, onSell, onDelete }: Actions & { r: Row }) {
-  const btn = 'rounded-md p-2 text-slate-400 transition';
+  const btn = 'rounded-full p-2 text-slate-400 transition';
   return (
     <div className="flex justify-end gap-0.5">
       <button onClick={onSell} aria-label={`Vendre ${r.ticker}`} title="Vendre" className={`${btn} hover:bg-sky-500/10 hover:text-sky-400`}>
@@ -79,9 +79,9 @@ function Realized({ v }: { v: number }) {
 function DesktopRow({ r, series, realized, ...a }: Actions & { r: Row; series: ReturnType<typeof holdingSeries>; realized: number }) {
   const flash = useFlash(r.price);
   return (
-    <div role="row" className={`group relative overflow-hidden border-t border-slate-800/70 transition hover:bg-slate-900/60 ${GRID} ${flash}`}>
+    <div role="row" data-enter className={`group relative overflow-hidden border-t border-slate-800/70 transition-colors hover:bg-sky-500/10 ${GRID} ${flash}`}>
       {/* évolution du cours depuis l'achat, en arrière-plan de la ligne */}
-      <Sparkline points={series} baseline={r.buyPrice} className="absolute inset-0 h-full w-full opacity-70 transition group-hover:opacity-100" />
+      <Sparkline points={series} baseline={r.buyPrice} className="absolute inset-0 h-full w-full opacity-40 transition-opacity group-hover:opacity-70" />
       <div role="cell" className="relative py-3 pl-4 pr-3">
         <div className="font-semibold text-slate-100">{r.ticker}</div>
         <div className="truncate text-xs text-slate-500">{r.name}</div>
@@ -94,7 +94,7 @@ function DesktopRow({ r, series, realized, ...a }: Actions & { r: Row; series: R
       <div role="cell" className="num relative px-3 text-right text-slate-100">{fmtMAD(r.value)}</div>
       <div role="cell" className={`num relative px-3 text-right ${toneClass(r.pnl)}`}>
         <div className="font-semibold">{fmtSigned(r.pnl)}</div>
-        <div className="text-xs opacity-80">{fmtPct(r.pnlPct)}</div>
+        <div className="text-xs">{fmtPct(r.pnlPct)}</div>
       </div>
       <div role="cell" className="num relative px-3 text-right">
         <Realized v={realized} />
@@ -112,9 +112,9 @@ function DesktopRow({ r, series, realized, ...a }: Actions & { r: Row; series: R
 function MobileCard({ r, series, realized, ...a }: Actions & { r: Row; series: ReturnType<typeof holdingSeries>; realized: number }) {
   const flash = useFlash(r.price);
   return (
-    <li className={`overflow-hidden rounded-xl border border-slate-800 bg-slate-900/60 ${flash}`}>
+    <li data-enter className={`overflow-hidden rounded-2xl border border-sky-300/15 bg-sky-950/20 ${flash}`}>
       <div className="relative px-4 pb-3 pt-4">
-        <Sparkline points={series} baseline={r.buyPrice} className="absolute inset-x-0 bottom-0 top-6 h-[calc(100%-1.5rem)] w-full opacity-60" />
+        <Sparkline points={series} baseline={r.buyPrice} className="absolute inset-x-0 bottom-0 top-6 h-[calc(100%-1.5rem)] w-full opacity-40" />
         <div className="relative flex items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="font-semibold text-slate-100">{r.ticker}</div>
@@ -182,7 +182,7 @@ export function PositionsTable({ rows, prices, realized, onAdd, onEdit, onSell, 
   const actions = (id: string): Actions => ({ onEdit: () => onEdit(id), onSell: () => onSell(id), onDelete: () => onDelete(id) });
 
   return (
-    <section className="rounded-2xl border border-slate-800 bg-slate-900/40">
+    <section className="glass">
       <div className="flex items-center justify-between gap-3 px-4 py-4">
         <div>
           <h2 className="text-base font-semibold text-slate-100">Positions</h2>
@@ -192,7 +192,7 @@ export function PositionsTable({ rows, prices, realized, onAdd, onEdit, onSell, 
         </div>
         <button
           onClick={onAdd}
-          className="flex shrink-0 items-center gap-1.5 rounded-full bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 shadow-[0_0_18px_rgba(22,163,74,0.35)] transition hover:bg-emerald-400"
+          className="flex shrink-0 items-center gap-1.5 rounded-full bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 shadow-[0_0_18px_rgba(184,242,58,0.3)] transition hover:bg-emerald-400"
         >
           <Plus className="h-4 w-4" /> Ajouter
         </button>

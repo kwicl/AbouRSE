@@ -5,7 +5,6 @@ import { HeroChart } from './components/HeroChart';
 import { Metrics } from './components/Metrics';
 import { PnlBreakdown } from './components/PnlBreakdown';
 import { DailyResults } from './components/DailyResults';
-import { Wallpaper } from './components/Wallpaper';
 import { PositionsTable } from './components/PositionsTable';
 import { PositionModal } from './components/PositionModal';
 import { SellModal } from './components/SellModal';
@@ -17,6 +16,7 @@ import { clearIntraday, computeDaily, loadIntraday, recordIntraday } from './lib
 import { clearPrices, ensureHistories, loadPrices, recordPrices } from './lib/prices';
 import { load, loadBackup, save, saveBackup, type Backup } from './lib/storage';
 import { UNIVERSE_MAP } from './lib/universe';
+import { useEntrance } from './lib/motion';
 import { getSyncCode, isValidCode, newSyncCode, normalizeCode, pull, push, setSyncCode, type SyncDoc } from './lib/sync';
 import type { IntradayPoint, Position, PriceHistory, Sale } from './lib/types';
 
@@ -31,8 +31,8 @@ const DEFAULT_POSITIONS: Position[] = [
 
 const SYNC_DEBOUNCE_MS = 1500;
 
-// clés de l'ancien mode démo (cours simulés), supprimées au démarrage
-const LEGACY_KEYS = ['demo-quotes', 'needs-demo-history', 'history-daily'];
+// clés obsolètes (cours simulés de l'ancien mode démo, caches des anciens fonds d'écran), supprimées au démarrage
+const LEGACY_KEYS = ['demo-quotes', 'needs-demo-history', 'history-daily', 'wallpaper', 'wallpaper-seed', 'wallpaper-lists'];
 
 function initialPositions(): Position[] {
   try {
@@ -62,6 +62,9 @@ export default function App() {
   const [backup, setBackup] = useState<Backup | null>(loadBackup);
   const [syncCode, setCode] = useState<string | null>(getSyncCode);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>({ state: getSyncCode() ? 'ok' : 'off', at: null });
+
+  const root = useRef<HTMLDivElement>(null);
+  useEntrance(root);
 
   const market = useMarket();
   const rows = useMemo(() => buildRows(positions, market.quotes), [positions, market.quotes]);
@@ -284,7 +287,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen">
+    <div ref={root} className="min-h-screen">
       <TopBar
         quotes={market.quotes}
         mode={market.mode}
@@ -303,7 +306,7 @@ export default function App() {
         onSync={() => setShowSync(true)}
       />
 
-      <main className="mx-auto max-w-7xl space-y-5 px-4 py-5 sm:space-y-6 sm:py-8">
+      <main className="stage mx-auto max-w-7xl space-y-5 px-4 py-3 sm:space-y-6 sm:py-5">
         {market.mode === 'error' && (
           <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">
             Impossible de récupérer les cours ({market.error}). Vérifiez votre connexion puis actualisez.
@@ -324,7 +327,6 @@ export default function App() {
         />
         <SalesList sales={sales} onDelete={cancelSale} />
 
-        <Wallpaper />
         <footer className="safe-bottom flex flex-col gap-3 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
           <p className="flex items-start gap-1.5">
             <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />

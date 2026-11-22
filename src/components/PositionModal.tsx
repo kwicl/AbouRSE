@@ -61,11 +61,11 @@ export function PositionModal({ initial, currentPrice, quotes, onSave, onClose }
   const editing = Boolean(initial?.id);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/70 p-0 backdrop-blur-sm sm:items-center sm:p-4" onMouseDown={onClose}>
+    <div className="modal-veil fixed inset-0 z-50 flex items-end justify-center bg-slate-950/70 p-0 backdrop-blur-sm sm:items-center sm:p-4" onMouseDown={onClose}>
       <form
         onSubmit={submit}
         onMouseDown={(e) => e.stopPropagation()}
-        className="safe-bottom max-h-[92dvh] w-full max-w-md overflow-y-auto rounded-t-2xl border border-slate-800 bg-slate-900 p-5 shadow-2xl sm:rounded-2xl sm:pb-5"
+        className="modal-sheet safe-bottom max-h-[92dvh] w-full max-w-md overflow-y-auto rounded-t-3xl border bg-slate-900 p-5 shadow-2xl sm:rounded-3xl sm:pb-5"
         role="dialog"
         aria-modal="true"
         aria-labelledby="pos-title"

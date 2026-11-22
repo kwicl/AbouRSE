@@ -4,6 +4,8 @@ import { TrendingDown, TrendingUp } from 'lucide-react';
 import type { DailyPoint, IntradayPoint, Range } from '../lib/types';
 import type { Totals } from '../lib/portfolio';
 import { fmtMAD, fmtPct, fmtSigned } from '../lib/format';
+import { CountUp } from './ui/CountUp';
+import { SlidingGroup } from './ui/SlidingGroup';
 
 const RANGES: Range[] = ['1D', '1W', '1M', 'YTD', 'ALL'];
 const ORANGE = '#ff9a3c';
@@ -49,7 +51,7 @@ export function HeroChart({ daily, intraday, totals }: Props) {
 
   const gain = totals.pnl >= 0;
   const lineUp = (last?.roi ?? totals.pnlPct) >= 0;
-  const stroke = lineUp ? '#4ade80' : '#f87171';
+  const stroke = lineUp ? '#b8f23a' : '#f87171';
   // taille des points de séance selon leur densité (ALL peut couvrir des centaines de jours)
   const dotR = data.length > 150 ? 1.5 : data.length > 60 ? 2.25 : 3;
 
@@ -70,12 +72,15 @@ export function HeroChart({ daily, intraday, totals }: Props) {
 
   return (
     <section className={`neon ${gain ? '' : 'loss'} p-4 sm:p-6`}>
+      <span className="neon-rim" aria-hidden="true">
+        <i />
+      </span>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="text-xs font-medium uppercase tracking-[0.18em] text-slate-400">Plus/Moins-value globale</p>
           <div className="mt-1 flex flex-wrap items-baseline gap-3">
-            <span className="num neon-text text-3xl font-bold sm:text-5xl" style={{ color: `rgb(var(--glow))` }}>
-              {fmtSigned(totals.pnl)} <span className="text-lg font-semibold sm:text-2xl">MAD</span>
+            <span className="num neon-text text-4xl font-extrabold tracking-tighter sm:text-6xl">
+              <CountUp value={totals.pnl} format={fmtSigned} /> <span className="text-lg font-semibold sm:text-2xl">MAD</span>
             </span>
             <span className="badge-glow num inline-flex items-center gap-1 rounded-full px-3 py-1 text-sm font-semibold">
               {gain ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
@@ -83,7 +88,7 @@ export function HeroChart({ daily, intraday, totals }: Props) {
             </span>
           </div>
           <p className="mt-2 text-sm text-slate-400">
-            Valeur <span className="num text-slate-200">{fmtMAD(totals.value)} MAD</span>
+            Valeur <span className="num text-slate-200"><CountUp value={totals.value} format={fmtMAD} /> MAD</span>
             <span className="mx-2 text-slate-700">•</span>
             {range} :{' '}
             <span className={`num ${periodDelta >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
@@ -92,24 +97,25 @@ export function HeroChart({ daily, intraday, totals }: Props) {
           </p>
         </div>
 
-        <div className="flex self-start rounded-full border border-slate-800 bg-slate-900/70 p-1" role="tablist" aria-label="Période">
+        <SlidingGroup className="flex self-start rounded-full border border-sky-300/20 bg-slate-950/30 p-1" role="tablist" aria-label="Période">
           {RANGES.map((r) => (
             <button
               key={r}
               role="tab"
               aria-selected={range === r}
+              data-active={range === r}
               onClick={() => setRange(r)}
               className={`min-w-[2.75rem] rounded-full px-3 py-2 text-xs font-semibold transition sm:py-1 ${
-                range === r ? 'bg-slate-100 text-slate-900' : 'text-slate-400 hover:text-slate-100'
+                range === r ? '' : 'text-slate-400 hover:text-slate-100'
               }`}
             >
               {r}
             </button>
           ))}
-        </div>
+        </SlidingGroup>
       </div>
 
-      <div className="chart-glow mt-4 h-60 sm:h-80">
+      <div className="hero-chart mt-4 h-60 sm:h-80">
         {data.length < 2 ? (
           <div className="flex h-full items-center justify-center rounded-xl border border-dashed border-slate-800 text-sm text-slate-500">
             {range === '1D'
@@ -117,28 +123,28 @@ export function HeroChart({ daily, intraday, totals }: Props) {
               : 'Historique en cours de constitution — revenez demain pour voir la courbe.'}
           </div>
         ) : (
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer key={range} width="100%" height="100%">
             <AreaChart data={data} margin={{ top: 8, right: 4, left: -8, bottom: 0 }}>
               <defs>
                 <linearGradient id="roiStroke" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset={zeroOff} stopColor="#4ade80" />
+                  <stop offset={zeroOff} stopColor="#b8f23a" />
                   <stop offset={zeroOff} stopColor="#f87171" />
                 </linearGradient>
                 <linearGradient id="roiFill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset={0} stopColor="#4ade80" stopOpacity={0.35} />
-                  <stop offset={zeroOff} stopColor="#4ade80" stopOpacity={0.02} />
+                  <stop offset={0} stopColor="#b8f23a" stopOpacity={0.35} />
+                  <stop offset={zeroOff} stopColor="#b8f23a" stopOpacity={0.02} />
                   <stop offset={zeroOff} stopColor="#f87171" stopOpacity={0.02} />
                   <stop offset={1} stopColor="#f87171" stopOpacity={0.35} />
                 </linearGradient>
               </defs>
-              <CartesianGrid stroke="rgba(226,236,245,0.12)" strokeDasharray="0" vertical={false} />
+              <CartesianGrid stroke="rgba(147,197,253,0.12)" strokeDasharray="0" vertical={false} />
               <XAxis
                 dataKey="t"
                 type="number"
                 scale="time"
                 domain={['dataMin', 'dataMax']}
                 tickFormatter={fmtTick}
-                tick={{ fill: '#b3c2cf', fontSize: 11 }}
+                tick={{ fill: '#a9b7d1', fontSize: 11 }}
                 axisLine={false}
                 tickLine={false}
                 minTickGap={40}
@@ -146,14 +152,14 @@ export function HeroChart({ daily, intraday, totals }: Props) {
               <YAxis
                 domain={[min - pad, max + pad]}
                 tickFormatter={(v: number) => `${v.toFixed(1)}%`}
-                tick={{ fill: '#b3c2cf', fontSize: 11 }}
+                tick={{ fill: '#a9b7d1', fontSize: 11 }}
                 axisLine={false}
                 tickLine={false}
                 width={52}
               />
-              <ReferenceLine y={0} stroke="#8597a8" strokeDasharray="4 4" />
+              <ReferenceLine y={0} stroke="#60a5fa" strokeDasharray="4 4" />
               <Tooltip
-                cursor={{ stroke: '#8597a8', strokeWidth: 1, strokeDasharray: '3 3' }}
+                cursor={{ stroke: '#60a5fa', strokeWidth: 1, strokeDasharray: '3 3' }}
                 content={({ active, payload }) => {
                   if (!active || !payload?.length) return null;
                   const p = payload[0].payload as Pt;
@@ -190,8 +196,8 @@ export function HeroChart({ daily, intraday, totals }: Props) {
                 baseValue={0}
                 isAnimationActive={false}
                 // un point orange par séance : la courbe devient un fil perlé (pas en 1D, points intraday)
-                dot={range === '1D' ? false : { r: dotR, fill: ORANGE, stroke: 'rgba(17,26,34,0.6)', strokeWidth: 0.75 }}
-                activeDot={{ r: 5, fill: stroke, stroke: '#111a22', strokeWidth: 2 }}
+                dot={range === '1D' ? false : { r: dotR, fill: ORANGE, stroke: 'rgba(3,6,12,0.6)', strokeWidth: 0.75 }}
+                activeDot={{ r: 5, fill: stroke, stroke: '#03060c', strokeWidth: 2 }}
               />
             </AreaChart>
           </ResponsiveContainer>
